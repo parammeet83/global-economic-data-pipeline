@@ -16,7 +16,8 @@ Per-phase record of what was built and verified. Test counts are copied from act
 | 9 | `cd8c4f0` | Windows Task Scheduler wrapper, registration script, guide |
 | 10 | `de53453` | Fix: unit-test settings isolated from environment variables (found by fresh-clone check) |
 | 10–11 | `6315e3c` | README, screenshots, sample report, partial fresh-clone check, docs sync |
-| Remediation | not yet committed | Proxy-aware trigger guard, JSON logs, last-refresh indicator, status corrections |
+| Remediation | `5aa0e7a` | Proxy-aware trigger guard, JSON logs, last-refresh indicator, status corrections (GitHub Actions passed) |
+| Release prep | not yet committed | Fresh-clone verification recorded, MIT LICENSE, README status |
 
 ## Phase 2 — Database schema, migrations and CI
 
@@ -139,7 +140,7 @@ Per-phase record of what was built and verified. Test counts are copied from act
 - Create the scheduled task with `scripts/register_task.ps1` if wanted.
 - Choose a code license before publishing.
 
-## Remediation pass (after the final audit; not yet committed)
+## Remediation pass (after the final audit; committed as `5aa0e7a`)
 
 **Changes**
 - **Trigger guard (D-39), `backend/src/api/local_only.py`:**
@@ -171,3 +172,28 @@ Per-phase record of what was built and verified. Test counts are copied from act
   All application log lines were valid JSON, with no `postgresql` or `password` text.
 
 **Incident during verification:** my end-to-end script stopped the API while two API-triggered runs were still executing (`81f4832f`, `983325ba`), leaving them `running`. They were recovered by the application's stale-run recovery (`STALE_RUN_MINUTES=1` for the recovering invocation only) and remain in `gedp_dev` history as `failed` with the "Abandoned" summary; the recovering CLI run `e18800a3` succeeded (loaded 600, inserted 0, value changed 0). No rows are left `running`; no data was deleted.
+
+## 2026-10-20 — Fresh-clone verification and release preparation
+
+The repository owner performed and reported these results; they are recorded here, not re-measured by Claude Code.
+
+**Fresh-clone verification** (Windows):
+- **Environment:** the repository was cloned and set up following the README, with a **new** Python virtual environment and **separate** PostgreSQL databases `gedp_clone_dev` and `gedp_clone_test`. The original `gedp_dev` and `gedp_test` were not used.
+- **Migrations:** Alembic migrations completed successfully.
+- **Pipeline:** extracted, transformed and loaded **600** World Bank observations. All 600 were inserted into the fresh development database, with 0 rejected, 0 null-skipped, 0 duplicates dropped and 0 changed values.
+- **Backend tests:** **199 passed**, 1 deselected (the optional live test).
+- **Frontend:** **29 passed** in 8 test files; the TypeScript check and production build succeeded.
+- **Dashboard:** loaded and showed the API online, the database connected, 10 countries, 3 indicators and 600 observations.
+
+This completes the fresh-clone walkthrough that was previously open (the earlier check in the Phases 10–11 entry reused the existing `.venv` and databases).
+
+**CI:** the owner verified that GitHub Actions passed for commit `5aa0e7a`.
+
+**Release preparation (documentation only):**
+- Added a root `LICENSE` (MIT, copyright 2026 parammeet83).
+- README: status, fresh-clone results, CI and license sections updated. The license section states that the MIT License covers the repository's code, not World Bank data.
+
+**Still open:**
+- The Windows Task Scheduler task is prepared (`scripts/register_task.ps1`) but not registered.
+- The application is for local/demo use only: it is not deployed and has no monitoring.
+- P1/P2 enhancements remain deferred.

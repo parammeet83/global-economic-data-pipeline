@@ -2,12 +2,14 @@
 
 A data-engineering portfolio project that collects economic indicators from the [World Bank Indicators API](https://datahelpdesk.worldbank.org/knowledgebase/topics/125589-developer-information), validates them with pandas and Pandera, loads them **idempotently** into PostgreSQL, records every run and its data-quality results, and serves them through a FastAPI backend and a React dashboard.
 
-> **Status:** the implementation-plan phases 0–11 are built and tested locally on Windows, and GitHub Actions was green for commits `de53453` and `6315e3c`. Still open, manual steps:
-> - the Windows scheduled task is prepared but **not registered**;
-> - a fresh-clone walkthrough on a clean environment (new virtual environment and new databases) has **not been performed yet**;
-> - no code license has been chosen.
+> **Status:** the implementation-plan phases 0–11 are built and tested on Windows.
+> - A fresh-clone setup with a new virtual environment and separate databases was completed successfully on 2026-10-20.
+> - GitHub Actions passed for commit `5aa0e7a` (verified by the owner).
+> - Released under the [MIT License](LICENSE).
 >
-> The project runs locally only: it is not deployed and has no monitoring. The manual run endpoint is for local/demo use only.
+> **Still open:** the Windows scheduled task is prepared but **not registered**.
+>
+> This is a local/demo application: it is **not deployed** and has **no monitoring**. The manual run endpoint is for local/demo use only.
 
 ![Overview page](docs/screenshots/overview.png)
 
@@ -226,8 +228,15 @@ npm run build                # type check + production build
 - Backend: **199 passed** (117 unit, 82 integration on `gedp_test`), **97% line coverage** (re-measured 2026-10-20 after the security and logging changes).
   - The World Bank API is mocked in every automated test.
   - The optional live test passed separately.
-  - A clone of `origin/main` passed `alembic check` and the suite using the existing `.venv` and databases, after a CI-only environment issue was fixed (commit `de53453`). This is **not** a full fresh-clone walkthrough: that has not been performed yet.
 - Frontend: **29 passed** in 8 files; type check and production build succeed with no warnings.
+
+**Fresh-clone verification** (Windows, 2026-10-20). The repository was cloned and set up following this README, with a **new** Python virtual environment and **separate** PostgreSQL databases, `gedp_clone_dev` and `gedp_clone_test`:
+
+- **Migrations:** Alembic migrations completed successfully.
+- **Pipeline run:** extracted, transformed and loaded **600** World Bank observations. All 600 were inserted into the fresh development database, with 0 rejected, 0 null-skipped, 0 duplicates dropped and 0 changed values.
+- **Backend tests:** **199 passed**, 1 deselected (the optional live test).
+- **Frontend:** **29 passed** in 8 test files; the TypeScript check and production build succeeded.
+- **Dashboard:** loaded and showed the API online, the database connected, 10 countries, 3 indicators and 600 observations.
 
 **Covered by the tests:**
 - **Extraction:** retries and backoff, pagination consistency, HTTP-200 error payloads and the valid empty result.
@@ -238,7 +247,7 @@ npm run build                # type check + production build
 - **UI:** loading, empty and error states, never showing missing values as zero, and the trigger and polling flow.
 
 **CI:** `.github/workflows/ci.yml` runs the backend suite against a PostgreSQL 17 service container and the frontend `npm ci`, build and tests on every push and pull request.
-- Green for `de53453` and `6315e3c` (verified by the owner on GitHub).
+- Passed for commit `5aa0e7a`, verified by the owner on GitHub. Earlier passing runs: `de53453` and `6315e3c`.
 - Earlier commits `a3892da`–`cd8c4f0` are not confirmed and most likely failed because of the test-isolation bug fixed in `de53453`.
 
 ## Measured results (local, real data)
@@ -323,6 +332,6 @@ These are documented as P1/P2 in the PRD and were not built:
 
 ## Data source and license
 
-Data: World Bank Indicators API. Review the [World Bank terms of use for datasets](https://www.worldbank.org/en/about/legal/terms-of-use-for-datasets) for licensing and attribution before redistributing data.
+**Code:** this repository's source code and documentation are released under the [MIT License](LICENSE). Copyright © 2026 parammeet83.
 
-Code license: **not yet chosen** by the repository owner.
+**Data:** observations come from the World Bank Indicators API and are **not** covered by the MIT License. World Bank data has its own licensing and attribution terms; review the [World Bank terms of use for datasets](https://www.worldbank.org/en/about/legal/terms-of-use-for-datasets) before redistributing any data, including data loaded into your own database or shown in screenshots.
