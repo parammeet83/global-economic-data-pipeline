@@ -1,6 +1,6 @@
 # Global Economic Data Pipeline & Analytics Dashboard
 
-> **Status: in development.** Phases 0–5 are complete: configuration, `/health`, the PostgreSQL schema with migrations, CI, and the World Bank pipeline (extract, validate, idempotent load, run history, CLI). The analytics API and dashboard are **planned, not yet built**. Setup and usage sections describe only what currently works.
+> **Status: in development.** Phases 0–6 are complete: configuration, `/health`, the PostgreSQL schema with migrations, CI, and the World Bank pipeline (extract, validate, idempotent load, run history, CLI). The analytics API (Phase 6) is complete; the dashboard is **planned, not yet built**. Setup and usage sections describe only what currently works.
 
 A data-engineering portfolio project that will collect public economic indicators from the [World Bank Indicators API](https://datahelpdesk.worldbank.org/knowledgebase/topics/125589-developer-information), validate them, load them idempotently into PostgreSQL, and present them through a FastAPI backend and a React dashboard. The focus is reliability: retries and pagination, explicit validation, duplicate-safe reloads, audited pipeline runs and per-run data-quality results.
 
@@ -50,7 +50,7 @@ Ten configurable countries (ISO-3 codes), years 2005–2024 by default. Missing 
 | 3 | World Bank API client | Done |
 | 4 | Transformation and validation | Done |
 | 5 | Idempotent loader, run lifecycle, CLI | Done |
-| 6 | Analytics and pipeline API | Not started |
+| 6 | Analytics and pipeline API | Done |
 | 7–8 | React dashboard | Not started |
 | 9 | Scheduling (Windows Task Scheduler) | Not started |
 | 10–11 | README finalization, screenshots, measured results | Not started |
@@ -121,7 +121,22 @@ uvicorn src.main:app --reload
 ```
 
 - `http://127.0.0.1:8000/health` returns `200 {"status":"ok","database":"ok"}` when `SELECT 1` succeeds, or `503 {"status":"degraded","database":"unavailable"}` when the database cannot be reached.
-- `http://127.0.0.1:8000/docs` shows the interactive API documentation.
+- `http://127.0.0.1:8000/docs` shows the interactive API documentation (OpenAPI).
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/health` | Service and database status (200 or 503) |
+| GET | `/api/v1/dashboard/summary` | KPI counts, latest run, overview defaults |
+| GET | `/api/v1/indicators` | Indicators with configured units and coverage |
+| GET | `/api/v1/countries` | Countries present in the data |
+| GET | `/api/v1/observations` | Filtered, sorted, paginated observations |
+| GET | `/api/v1/analytics/trend` | Annual series per country (missing years are absent, never 0) |
+| GET | `/api/v1/analytics/country-comparison` | One indicator and year across 2–10 countries, plus unavailable countries |
+| GET | `/api/v1/runs`, `/api/v1/runs/{run_id}` | Run history; run detail with counts and quality checks (polling endpoint) |
+| GET | `/api/v1/quality/latest` | Checks of the most recent finished run, including a failed one |
+| POST | `/api/v1/pipeline/run` | Start a run: 202 + run ID; 409 if one is running; 403 if disabled or not from this machine |
+
+Errors always use `{"error": {"code": "...", "message": "..."}}` and never include stack traces, SQL or credentials.
 
 ## Running the pipeline
 

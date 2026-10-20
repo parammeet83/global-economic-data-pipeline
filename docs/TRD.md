@@ -177,7 +177,7 @@ Prefix: `/api/v1`. Exact response schemas should be implemented as typed Pydanti
 | GET | `/api/v1/runs` | Paginated recent pipeline runs |
 | GET | `/api/v1/runs/{run_id}` | One run, its counts, quality checks and errors; also the polling endpoint for run status (D-24) |
 | GET | `/api/v1/quality/latest` | Checks of the most recent **terminal** run (including a failed one), or an empty result if none (D-17) |
-| POST | `/api/v1/pipeline/run` | Claim and start a manual run: **202** `{run_id, status:"running", status_url}`; **409** if a run is in progress; **403** if `ENABLE_MANUAL_TRIGGER` is false (D-23) |
+| POST | `/api/v1/pipeline/run` | Claim and start a manual run: **202** `{run_id, status:"running", status_url}`; **409** if a run is in progress; **403** if `ENABLE_MANUAL_TRIGGER` is false or the client is not loopback (D-23, D-38) |
 
 ### Manual trigger execution model
 The claim (step 1 of §6) happens synchronously in the request so the response can carry a real run ID. The rest of the pipeline runs as a FastAPI `BackgroundTasks` job after the response is sent, in the server's thread pool, using its own database sessions and the same function the CLI calls. Limitations: the run dies with the API process (including `uvicorn --reload` restarts) and is later recovered as stale; there is no queue, cancellation or progress percentage; a single API process is assumed (the database guard still prevents overlap); no authentication, so local/demo only.

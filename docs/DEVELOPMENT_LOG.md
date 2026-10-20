@@ -9,7 +9,8 @@ Per-phase record of what was built and verified. Test counts are copied from act
 | 2 | `a3892da` | Schema, migrations, repositories, CI (48 passed) |
 | 3 | `a40d4af` | World Bank client: classification, retries, pagination (71 passed) |
 | 4 | `34b281c` | pandas/Pandera transform, counts, quality checks, status rules (105 passed) |
-| 5 | see Phase 6 entry | Loader, run lifecycle, orchestrator, CLI |
+| 5 | `1b4d868` | Loader, run lifecycle, orchestrator, CLI (127 passed) |
+| 6 | see Phase 7 entry | FastAPI analytics, runs, quality and trigger endpoints |
 
 ## Phase 2 — Database schema, migrations and CI
 
@@ -61,3 +62,13 @@ Per-phase record of what was built and verified. Test counts are copied from act
 **Verified**
 - `pytest` (from `backend/`): **127 passed**, 96% coverage. New integration tests cover success, idempotent rerun, value changes, nulls, partial success (failed series, rejected rows, pagination error), failed runs (all series, metadata error payload, aggregate code), load rollback with a durable run record, refused overlapping claim, stale recovery, a stale-recovered run unable to commit, the JSON export and CLI exit codes 0–4.
 - Real data, `gedp_dev`, 2026-10-20: run 1 `success` loaded=600 inserted=600 value_changed=0 (pipeline 3.77 s); run 2 `success` loaded=600 inserted=0 value_changed=0 (1.78 s). Database: 600 observations, 600 distinct keys, 10 countries, 3 indicators, 18 passed checks, no zero-filled values.
+
+## Phase 6 — Backend analytics API
+
+**Built**
+- Endpoints from TRD §7: dashboard summary (with configured defaults), indicators (units, coverage), countries, observations (filters, allow-listed sort with primary-key tie-break, pagination), trend, country comparison (sorted, with unavailable countries), run list/detail (polling), latest quality (most recent terminal run), and `POST /api/v1/pipeline/run` (202 + run ID, background execution through the shared orchestrator, 409, 403).
+- One error shape for 404/405/409/403/422/503/500 with no stack traces, SQL or driver messages; CORS limited to `CORS_ORIGINS`; loopback-only trigger (D-38).
+
+**Verified**
+- `pytest`: **157 passed**, 97% coverage, no warnings (30 new API tests: contract, validation, empty database, unavailable database, unexpected error, CORS, 202/409/403 including a non-local client).
+- Live server against `gedp_dev` (2026-10-20): all endpoints returned real data (600 observations, 10 countries, 3 indicators); a manual run via POST returned 202, a second POST returned 409 while it ran, and polling reached `success` with loaded=600 inserted=0 value_changed=0.
