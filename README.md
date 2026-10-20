@@ -1,6 +1,6 @@
 # Global Economic Data Pipeline & Analytics Dashboard
 
-> **Status: in development.** Phases 0–6 are complete: configuration, `/health`, the PostgreSQL schema with migrations, CI, and the World Bank pipeline (extract, validate, idempotent load, run history, CLI). The analytics API (Phase 6) is complete; the dashboard is **planned, not yet built**. Setup and usage sections describe only what currently works.
+> **Status: in development.** Phases 0–7 are complete: configuration, `/health`, the PostgreSQL schema with migrations, CI, and the World Bank pipeline (extract, validate, idempotent load, run history, CLI). The analytics API is complete and the dashboard shell with the Overview page is built; the remaining dashboard pages are **planned, not yet built**. Setup and usage sections describe only what currently works.
 
 A data-engineering portfolio project that will collect public economic indicators from the [World Bank Indicators API](https://datahelpdesk.worldbank.org/knowledgebase/topics/125589-developer-information), validate them, load them idempotently into PostgreSQL, and present them through a FastAPI backend and a React dashboard. The focus is reliability: retries and pagination, explicit validation, duplicate-safe reloads, audited pipeline runs and per-run data-quality results.
 
@@ -137,6 +137,19 @@ uvicorn src.main:app --reload
 | POST | `/api/v1/pipeline/run` | Start a run: 202 + run ID; 409 if one is running; 403 if disabled or not from this machine |
 
 Errors always use `{"error": {"code": "...", "message": "..."}}` and never include stack traces, SQL or credentials.
+
+## Running the dashboard
+
+Requires Node.js 24 LTS. Start the API first (above), then from `frontend/`:
+
+```powershell
+npm install        # first time only (uses package-lock.json)
+npm run dev        # http://localhost:5173 ; /api and /health are proxied to http://127.0.0.1:8000
+npm run build      # type check + production build into frontend/dist
+npm test           # Vitest unit tests (API responses mocked)
+```
+
+Set `VITE_BACKEND_URL` to proxy to a different API address. The browser only calls the FastAPI backend; it never receives database credentials.
 
 ## Running the pipeline
 

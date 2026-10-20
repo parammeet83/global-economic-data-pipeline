@@ -10,7 +10,8 @@ Per-phase record of what was built and verified. Test counts are copied from act
 | 3 | `a40d4af` | World Bank client: classification, retries, pagination (71 passed) |
 | 4 | `34b281c` | pandas/Pandera transform, counts, quality checks, status rules (105 passed) |
 | 5 | `1b4d868` | Loader, run lifecycle, orchestrator, CLI (127 passed) |
-| 6 | see Phase 7 entry | FastAPI analytics, runs, quality and trigger endpoints |
+| 6 | `9543340` | FastAPI analytics, runs, quality and trigger endpoints (157 passed) |
+| 7 | see Phase 8 entry | React/TypeScript/Vite shell, API client, Overview page, frontend CI |
 
 ## Phase 2 — Database schema, migrations and CI
 
@@ -72,3 +73,16 @@ Per-phase record of what was built and verified. Test counts are copied from act
 **Verified**
 - `pytest`: **157 passed**, 97% coverage, no warnings (30 new API tests: contract, validation, empty database, unavailable database, unexpected error, CORS, 202/409/403 including a non-local client).
 - Live server against `gedp_dev` (2026-10-20): all endpoints returned real data (600 observations, 10 countries, 3 indicators); a manual run via POST returned 202, a second POST returned 409 while it ran, and polling reached `success` with loaded=600 inserted=0 value_changed=0.
+
+## Phase 7 — Frontend foundation and Overview
+
+**Built** (`frontend/`)
+- React 19 + TypeScript 7 + Vite 8 + Recharts 3 + React Router 7 (versions locked in `package-lock.json`, Node.js 24). Vite proxies `/api` and `/health` to FastAPI, so the browser uses relative URLs only.
+- Typed API client that separates "backend unreachable" from HTTP errors; `useApi` hook with abort handling; design tokens as CSS variables; layout with sidebar, active route and live health indicator; loading/skeleton, error-with-retry and empty states; status badges with text; unit-aware number formatting that renders missing values as "—".
+- Overview page: KPIs, failed-run warning, trend preview from the backend's configured defaults (gaps for missing years), recent runs and latest quality verdict (never "passed" for a failed run or failed check).
+- CI: a frontend job runs `npm ci`, `npm run build` and `npm test`.
+
+**Verified**
+- `npm run build`: type check and production build succeed (one Vite advisory about a 639 kB bundle, addressed in Phase 8).
+- `npm test`: **5 passed** (loading, data, empty database, backend unreachable, database outage, failed latest run).
+- Real end-to-end: API on `gedp_dev` + Vite dev server, captured with headless Edge — the Overview showed 10 countries, 3 indicators, 600 observations, the GDP trend for the five default countries, three real runs and "All checks passed".
