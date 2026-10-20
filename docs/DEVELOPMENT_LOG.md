@@ -11,7 +11,8 @@ Per-phase record of what was built and verified. Test counts are copied from act
 | 4 | `34b281c` | pandas/Pandera transform, counts, quality checks, status rules (105 passed) |
 | 5 | `1b4d868` | Loader, run lifecycle, orchestrator, CLI (127 passed) |
 | 6 | `9543340` | FastAPI analytics, runs, quality and trigger endpoints (157 passed) |
-| 7 | see Phase 8 entry | React/TypeScript/Vite shell, API client, Overview page, frontend CI |
+| 7 | `237abe4` | React/TypeScript/Vite shell, API client, Overview page, frontend CI (Vitest 5 passed) |
+| 8 | see Phase 9 entry | Explore, Compare, Runs (trigger + polling), Run detail, Quality, About; Vitest |
 
 ## Phase 2 — Database schema, migrations and CI
 
@@ -86,3 +87,15 @@ Per-phase record of what was built and verified. Test counts are copied from act
 - `npm run build`: type check and production build succeed (one Vite advisory about a 639 kB bundle, addressed in Phase 8).
 - `npm test`: **5 passed** (loading, data, empty database, backend unreachable, database outage, failed latest run).
 - Real end-to-end: API on `gedp_dev` + Vite dev server, captured with headless Edge — the Overview showed 10 countries, 3 indicators, 600 observations, the GDP trend for the five default countries, three real runs and "All checks passed".
+
+## Phase 8 — Analytics, runs and quality screens
+
+**Built**
+- Explore Data (validated filters, Apply, filter chips, trend chart, sortable server-paginated table as the chart's table alternative), Compare Countries (2–10 countries, year from coverage, sorted bar chart + table, unavailable countries listed instead of zero), Pipeline Runs (history, confirmation dialog, POST trigger, 3 s polling with 10-minute timeout, 409/403 messages), Run detail (full count breakdown, summary, checks, copy run ID, live refresh while running), Data Quality (verdict, checks, explanation of warnings vs failures) and About & Sources (World Bank source, indicators with units and coverage, limitations).
+- Route-level code splitting removed the Phase 7 bundle-size advisory.
+- Narrow widths (D-29): at a true 320 px viewport, filters and controls fit; only data tables scroll horizontally. Long indicator names in `<select>` no longer widen the page.
+
+**Verified**
+- `npm run build`: succeeds with no warnings.
+- `npm test`: **26 passed** in 7 files (formatting and missing values, chart gaps as null, filter validation and request parameters, comparison unavailable list, trigger confirm → 202 → polling → success, cancel, 409, 403, quality never green for a failed run, Overview states).
+- Real end-to-end: every page captured with headless Edge against the API and `gedp_dev`, at 1440 px and at a true 320 px viewport.

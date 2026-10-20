@@ -1,6 +1,6 @@
 # Global Economic Data Pipeline & Analytics Dashboard
 
-> **Status: in development.** Phases 0–7 are complete: configuration, `/health`, the PostgreSQL schema with migrations, CI, and the World Bank pipeline (extract, validate, idempotent load, run history, CLI). The analytics API is complete and the dashboard shell with the Overview page is built; the remaining dashboard pages are **planned, not yet built**. Setup and usage sections describe only what currently works.
+> **Status: in development.** Phases 0–8 are complete: configuration, `/health`, the PostgreSQL schema with migrations, CI, and the World Bank pipeline (extract, validate, idempotent load, run history, CLI). The analytics API and all six dashboard pages are built. Scheduling setup and final documentation are in progress. Setup and usage sections describe only what currently works.
 
 A data-engineering portfolio project that will collect public economic indicators from the [World Bank Indicators API](https://datahelpdesk.worldbank.org/knowledgebase/topics/125589-developer-information), validate them, load them idempotently into PostgreSQL, and present them through a FastAPI backend and a React dashboard. The focus is reliability: retries and pagination, explicit validation, duplicate-safe reloads, audited pipeline runs and per-run data-quality results.
 
@@ -51,7 +51,7 @@ Ten configurable countries (ISO-3 codes), years 2005–2024 by default. Missing 
 | 4 | Transformation and validation | Done |
 | 5 | Idempotent loader, run lifecycle, CLI | Done |
 | 6 | Analytics and pipeline API | Done |
-| 7–8 | React dashboard | Not started |
+| 7–8 | React dashboard | Done |
 | 9 | Scheduling (Windows Task Scheduler) | Not started |
 | 10–11 | README finalization, screenshots, measured results | Not started |
 
