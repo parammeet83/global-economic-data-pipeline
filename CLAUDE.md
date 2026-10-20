@@ -4,15 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state
 
-This project is **pre-code**. The repository currently contains only:
-- `docs/` — six planning documents (the source of truth for all work).
-- `.venv/` — a root-level Python 3.12.10 virtual environment.
+This project is **pre-code** (Phase 0, documentation only). The repository currently contains only:
+- `docs/` — six specification documents (the source of truth for all work), `DECISIONS.md` (decision log) and `INDEX.md`.
+- `README.md` (in-development skeleton), `.gitignore`, this file.
+- `.venv/` — a root-level Python 3.12.10 virtual environment (git-ignored).
 
 No `backend/`, `frontend/`, migrations, or tests exist yet. The commands and layout below are the *planned* targets described in the docs; most do not run until the corresponding phase is built. When building, create structure incrementally — do not scaffold every directory up front.
 
 ## The docs are the contract
 
-Read the relevant document(s) in `docs/` before implementing anything. Recommended order: `PRD.md` → `TRD.md` → `Backend_DB_Schema.md` → `WebAppFlow.md` → `UIUX_design_spec.md` → `implementation_plan.md` (summarized in `docs/INDEX.md`).
+Read the relevant document(s) in `docs/` before implementing anything. Recommended order: `PRD.md` → `TRD.md` → `Backend_DB_Schema.md` → `WebAppFlow.md` → `UIUX_design_spec.md` → `implementation_plan.md` (summarized in `docs/INDEX.md`). `docs/DECISIONS.md` is the decision log (`D-xx`: decision, rationale, impact); the detailed rules — run-status rules and response classification (TRD §5–6), record counts and quality checks (Schema §3.3, §3.5) — live in the specs. Keep the log and the specs in sync.
 
 Work **one phase at a time** per `implementation_plan.md` (Phases 0–11). Build thin vertical slices: ingestion+storage correct first, then API, then UI, then scheduling/deployment. Do not "build the entire app" in one pass. Summarize changed files and tests at the end of each phase. Do not create the milestone commits listed in the plan before the corresponding functionality actually exists and runs.
 
@@ -47,14 +48,14 @@ Backend layering (`backend/src/`): `api/` (routers + Pydantic schemas), `pipelin
 ## Environment & tooling
 
 - Development is on **Windows**; avoid shell-only assumptions in application code. The shell here is PowerShell (Bash tool also available).
-- The virtual environment lives at the **repo root** `.venv/` (Python 3.12.10). Note: `TRD.md` mentions `backend/.venv` as an alternative — the root `.venv` is the one that exists; use one convention consistently and document it.
+- The virtual environment lives at the **repo root** `.venv/` (Python 3.12.10); this is the only convention (DECISIONS D-01).
   - Activate (PowerShell): `.\.venv\Scripts\Activate.ps1`
 - PostgreSQL is the system of record; prefer a dedicated local app database/user over the superuser.
 
 ## Commands (planned — exist once their phase is built)
 
 Backend (from `backend/`):
-- Install: `pip install -r requirements.txt`
+- Install: `pip install -r requirements-dev.txt` (runtime deps are in `requirements.txt`; dev file includes it)
 - Run API: `uvicorn src.main:app --reload`  (health at `/health`)
 - Migrate: `alembic upgrade head`
 - New migration: `alembic revision --autogenerate -m "message"`
