@@ -7,7 +7,8 @@ Per-phase record of what was built and verified. Test counts are copied from act
 | 0 | `5a0a763` | Specifications reconciled; decision log; README skeleton |
 | 1 | `477dcfb` | Settings, `/health`, unit + integration tests (26 passed) |
 | 2 | `a3892da` | Schema, migrations, repositories, CI (48 passed) |
-| 3 | see Phase 4 entry | World Bank client: classification, retries, pagination |
+| 3 | `a40d4af` | World Bank client: classification, retries, pagination (71 passed) |
+| 4 | see Phase 5 entry | pandas/Pandera transform, counts, quality checks, status rules |
 
 ## Phase 2 — Database schema, migrations and CI
 
@@ -36,3 +37,14 @@ Per-phase record of what was built and verified. Test counts are copied from act
 **Verified**
 - `pytest tests/unit/test_worldbank_client.py`: **23 passed** (all HTTP mocked).
 - Optional live smoke test (`pytest -m live`): **1 passed** against the real API (2 pages, 4 rows).
+
+## Phase 4 — Transformation and validation
+
+**Built**
+- `backend/src/pipeline/transform.py`: pandas normalization (ISO-3 from `countryiso3code`, trimmed/upper-cased codes, strict 4-digit years, numeric values), a lazy Pandera schema whose named checks are the rejection rules, null skipping, first-occurrence de-duplication with identical/conflicting detection, Decimal values at 6 decimal places, and a strict Pandera schema on the load-ready frame. Enforces `E = R + N + D + T`.
+- `backend/src/pipeline/quality.py`: the nine check builders (D-17), the run-status rules (D-15) and the optional JSON report export (D-16).
+- Library versions: pandas 3.0.6, NumPy 2.5.4, Pandera 0.34.1 (imported as `pandera.pandas`).
+
+**Verified**
+- `pytest tests/unit/test_transform.py tests/unit/test_quality.py`: **34 passed**, no warnings.
+- Live extract + transform (no database writes) on the configured scope, 10 countries × 3 indicators × 2005–2024: E=600, R=0, N=0, D=0, T=600, all checks passed (2026-10-20).
