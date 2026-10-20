@@ -7,9 +7,9 @@
 
 ## 0. Repository state (2026-10-20)
 
-- Phases 0–11 are implemented and pushed to `origin/main`; per-phase commits and actual test results are in `DEVELOPMENT_LOG.md`.
+- Phases 0–11 are implemented and pushed to `origin/main`; per-phase commits and actual test results are in `DEVELOPMENT_LOG.md`. GitHub Actions was green for `de53453` and `6315e3c` (verified by the owner).
 - The root `.venv` (Python 3.12.10) is the only Python environment; PostgreSQL 17 hosts `gedp_dev` and `gedp_test` (role `gedp_app`).
-- Not done by design: the Windows scheduled task is prepared (`scripts/register_task.ps1`) but created by the owner; a code license has not been chosen; P1/P2 enhancements are deferred.
+- Still open (manual steps): the Windows scheduled task is prepared (`scripts/register_task.ps1`) but **not registered**; a full fresh-clone walkthrough on a clean environment (new virtual environment and new databases) has **not** been performed; a code license has not been chosen. P1/P2 enhancements are deferred.
 
 ## 1. Approach
 

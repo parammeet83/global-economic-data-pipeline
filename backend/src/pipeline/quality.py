@@ -101,7 +101,7 @@ def write_json_report(reports_dir: str | Path, run_id: str, report: dict[str, An
         path.write_text(json.dumps(report, indent=2, default=str), encoding="utf-8")
         return path
     except OSError as exc:
-        logger.warning("Could not write JSON report (%s)", type(exc).__name__)
+        logger.warning("Could not write JSON report", extra={"event": "report_write_failed", "error_type": type(exc).__name__})
         return None
 
 

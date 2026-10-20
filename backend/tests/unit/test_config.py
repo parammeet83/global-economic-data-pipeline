@@ -100,6 +100,7 @@ def test_environment_variable_overrides_default(monkeypatch, make_settings):
         ({"default_country_codes": "FRA"}, "DEFAULT_COUNTRY_CODES must be in COUNTRY_CODES"),
         ({"default_indicator_code": "XX.UNKNOWN"}, "DEFAULT_INDICATOR_CODE must be one of"),
         ({"log_level": "loud"}, "LOG_LEVEL: must be one of"),
+        ({"trusted_proxy_ips": "127.0.0.1,proxy.local"}, "TRUSTED_PROXY_IPS must contain IP addresses; invalid: proxy.local"),
     ],
 )
 def test_inconsistent_settings_are_rejected(make_settings, overrides, expected):

@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
+import { resetRefresh } from "../api/refresh";
 
 // Recharts' ResponsiveContainer measures its parent; jsdom has no layout engine.
 class ResizeObserverStub {
@@ -14,4 +15,5 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  resetRefresh();
 });

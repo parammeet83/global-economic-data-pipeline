@@ -10,6 +10,7 @@ Run ``python -m src.core.config`` from ``backend/`` to check the configuration.
 
 from __future__ import annotations
 
+import ipaddress
 import re
 from functools import lru_cache
 from pathlib import Path
@@ -104,6 +105,9 @@ class Settings(BaseSettings):
     # Run control (D-20, D-23)
     stale_run_minutes: int = Field(default=60, ge=1)
     enable_manual_trigger: bool = True
+    # Proxies whose X-Forwarded-For header is trusted for the local-only trigger check (D-39).
+    # Empty by default: forwarding headers are never trusted unless configured.
+    trusted_proxy_ips: CodeList = Field(default_factory=list)
 
     # Dashboard defaults (D-26)
     default_indicator_code: str = "NY.GDP.MKTP.CD"
@@ -120,12 +124,23 @@ class Settings(BaseSettings):
     def _parse_code_list(cls, value: Any) -> Any:
         return _split_codes(value)
 
-    @field_validator("cors_origins", mode="before")
+    @field_validator("cors_origins", "trusted_proxy_ips", mode="before")
     @classmethod
-    def _parse_origins(cls, value: Any) -> Any:
+    def _parse_plain_list(cls, value: Any) -> Any:
         if isinstance(value, str):
             return [part.strip() for part in value.split(",") if part.strip()]
         return value
+
+    @field_validator("trusted_proxy_ips")
+    @classmethod
+    def _check_proxy_ips(cls, value: list[str]) -> list[str]:
+        normalized = []
+        for item in value:
+            try:
+                normalized.append(str(ipaddress.ip_address(item)))
+            except ValueError:
+                raise ValueError(f"TRUSTED_PROXY_IPS must contain IP addresses; invalid: {item}") from None
+        return normalized
 
     @field_validator("log_level")
     @classmethod

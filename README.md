@@ -2,7 +2,12 @@
 
 A data-engineering portfolio project that collects economic indicators from the [World Bank Indicators API](https://datahelpdesk.worldbank.org/knowledgebase/topics/125589-developer-information), validates them with pandas and Pandera, loads them **idempotently** into PostgreSQL, records every run and its data-quality results, and serves them through a FastAPI backend and a React dashboard.
 
-> **Status:** MVP complete (implementation-plan phases 0–11). Runs locally on Windows; it has not been deployed publicly. The manual run endpoint is for local/demo use only.
+> **Status:** the implementation-plan phases 0–11 are built and tested locally on Windows, and GitHub Actions was green for commits `de53453` and `6315e3c`. Still open, manual steps:
+> - the Windows scheduled task is prepared but **not registered**;
+> - a fresh-clone walkthrough on a clean environment (new virtual environment and new databases) has **not been performed yet**;
+> - no code license has been chosen.
+>
+> The project runs locally only: it is not deployed and has no monitoring. The manual run endpoint is for local/demo use only.
 
 ![Overview page](docs/screenshots/overview.png)
 
@@ -136,17 +141,19 @@ notepad .env                         # replace both CHANGE_ME values with your g
 python -m src.core.config            # "Configuration OK" + databases, without the password
 alembic upgrade head                 # create the schema in gedp_dev
 python -m src.pipeline.cli run       # load real World Bank data (about 600 rows)
-uvicorn src.main:app --reload        # API on http://127.0.0.1:8000 (docs at /docs)
+uvicorn src.main:app --host 127.0.0.1 --reload   # API on loopback only: http://127.0.0.1:8000 (docs at /docs)
 ```
 
 If the password contains `@ : / ? # %` or spaces, URL-encode them in `.env` (for example `@` becomes `%40`).
+
+`.env.example` includes `TRUSTED_PROXY_IPS=127.0.0.1,::1` so the dashboard's Run button works through the local Vite proxy. If your `backend/.env` was created before this setting existed, add that line. Without it, the Run button returns 403 when used through the dashboard (D-39).
 
 **3. Dashboard.** In a second terminal:
 
 ```powershell
 cd frontend
 npm ci
-npm run dev                          # http://localhost:5173
+npm run dev                          # http://127.0.0.1:5173 (bound to loopback; API calls are proxied)
 ```
 
 ## Usage
@@ -187,6 +194,7 @@ Errors always have the form `{"error": {"code": "...", "message": "..."}}` and n
 
 ### Dashboard pages
 
+- **Every page:** a top bar with the time of the last successful data refresh ("Not refreshed yet" before the first) and the backend/database health.
 - **Overview:** KPIs, latest run status and a trend preview.
 - **Explore Data:** filters, trend chart and an observation table.
 - **Compare Countries:** one indicator and year across 2–10 countries.
@@ -215,11 +223,11 @@ npm run build                # type check + production build
 
 **Results** (measured 2026-10-20 on Windows, Python 3.12.10, PostgreSQL 17.11):
 
-- Backend: **157 passed** (unit and integration), **97% line coverage**.
+- Backend: **199 passed** (117 unit, 82 integration on `gedp_test`), **97% line coverage** (re-measured 2026-10-20 after the security and logging changes).
   - The World Bank API is mocked in every automated test.
   - The optional live test passed separately.
-  - A fresh clone from GitHub also passed `alembic check` and the suite once a CI-only environment issue was fixed (commit `de53453`).
-- Frontend: **26 passed** in 7 files, and the production build has no warnings.
+  - A clone of `origin/main` passed `alembic check` and the suite using the existing `.venv` and databases, after a CI-only environment issue was fixed (commit `de53453`). This is **not** a full fresh-clone walkthrough: that has not been performed yet.
+- Frontend: **29 passed** in 8 files; type check and production build succeed with no warnings.
 
 **Covered by the tests:**
 - **Extraction:** retries and backoff, pagination consistency, HTTP-200 error payloads and the valid empty result.
@@ -229,7 +237,9 @@ npm run build                # type check + production build
 - **API:** contracts, error shapes and CORS.
 - **UI:** loading, empty and error states, never showing missing values as zero, and the trigger and polling flow.
 
-**CI:** `.github/workflows/ci.yml` runs the backend suite against a PostgreSQL 17 service container and the frontend `npm ci`, build and tests on every push and pull request. Results are in the repository's Actions tab.
+**CI:** `.github/workflows/ci.yml` runs the backend suite against a PostgreSQL 17 service container and the frontend `npm ci`, build and tests on every push and pull request.
+- Green for `de53453` and `6315e3c` (verified by the owner on GitHub).
+- Earlier commits `a3892da`–`cd8c4f0` are not confirmed and most likely failed because of the test-isolation bug fixed in `de53453`.
 
 ## Measured results (local, real data)
 
@@ -255,6 +265,7 @@ All settings come from environment variables or `backend/.env`; see `backend/.en
 | `INDICATOR_CODES` and `INDICATOR_UNITS` | GDP (current US$), population, unemployment (%) |
 | `START_YEAR`, `END_YEAR` | 2005, 2024 |
 | `ENABLE_MANUAL_TRIGGER` | true locally |
+| `TRUSTED_PROXY_IPS` | empty; `.env.example` sets `127.0.0.1,::1` for the local Vite proxy |
 | `STALE_RUN_MINUTES` | 60 |
 | `CORS_ORIGINS` | `http://localhost:5173` |
 
@@ -267,16 +278,23 @@ Startup validates every value and reports problems without echoing secrets. The 
 | `Configuration error … DATABASE_URL: is required` | Create `backend/.env` from `.env.example`. |
 | `/health` returns 503 | Check the `postgresql-x64-17` service is running and the password in `.env` is right. |
 | `ModuleNotFoundError` or wrong packages | Activate the root `.venv` first (`.\.venv\Scripts\Activate.ps1`). `python -c "import sys; print(sys.executable)"` should point into `.venv`. |
-| Port 8000 already in use | Another API instance is running. Stop it, or start this one with `--port 8001` and run the dashboard with `$env:VITE_BACKEND_URL="http://127.0.0.1:8001"; npm run dev`. |
+| Port 8000 already in use | Another API instance is running. Stop it, or start this one with `--host 127.0.0.1 --port 8001` and run the dashboard with `$env:VITE_BACKEND_URL="http://127.0.0.1:8001"; npm run dev`. |
+| Run button: 403 mentioning `TRUSTED_PROXY_IPS` | Add `TRUSTED_PROXY_IPS=127.0.0.1,::1` to `backend/.env` and restart the API. |
 | CLI exit code 3 | A run is in progress. If a run crashed, it is marked failed automatically after `STALE_RUN_MINUTES`. |
-| Dashboard shows "Cannot reach the backend" | Start the API (`uvicorn src.main:app --reload` in `backend/`). |
+| Dashboard shows "Cannot reach the backend" | Start the API (`uvicorn src.main:app --host 127.0.0.1 --reload` in `backend/`). |
 | Dashboard is empty | Run `python -m src.pipeline.cli run` once. |
 
 ## Security notes
 
 - `backend/.env` is git-ignored and `.env.example` contains placeholders only. Database URLs are stored as masked secrets in settings, and validation errors never echo values.
 - API errors, run summaries and logs contain no stack traces, SQL, driver messages or credentials.
-- The manual run endpoint has no authentication. It is disabled by `ENABLE_MANUAL_TRIGGER=false`, accepts loopback clients only (D-38), and must not be exposed publicly without authentication and rate limiting.
+- The manual run endpoint has **no authentication**. It can be switched off with `ENABLE_MANUAL_TRIGGER=false`. Otherwise it accepts a request only when all of these hold (D-38, D-39):
+  - the `Host` header is a loopback name;
+  - the client is loopback;
+  - any `X-Forwarded-For` comes from a proxy listed in `TRUSTED_PROXY_IPS`; the right-most untrusted entry is used, so a forged value cannot win.
+
+  The API and the Vite dev server bind to `127.0.0.1` by default. This loopback-only guard is **not a substitute for authentication**: before any deployment beyond this machine, add authentication and rate limiting, or disable the endpoint.
+- Application logs are JSON lines. Credentials in URLs, `password=`-style values and secret-named fields are redacted, and exceptions are logged without tracebacks (D-40).
 - The database user `gedp_app` is not a superuser; tests use a separate `*_test` database and never truncate or drop data (D-37).
 
 ## Known limitations
@@ -286,6 +304,7 @@ Startup validates every value and reports problems without echoing secrets. The 
 - **Scope.** Three indicators and ten countries by default. Aggregates (World, regions) are excluded on purpose.
 - **Not production.** Local/demo deployment only. There are no user accounts or authentication.
 - **CI.** CI runs on Linux (Ubuntu). Local development and every test result above are from Windows.
+- **Logs.** Logs go to the console (stderr) or, for scheduled runs, to `logs/`. There is no log aggregation or monitoring. uvicorn's own access log is plain text.
 
 ## Deferred (optional) enhancements
 

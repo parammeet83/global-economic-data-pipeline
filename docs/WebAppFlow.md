@@ -105,7 +105,7 @@ Never show a green all-clear badge if checks failed or if the run itself failed.
 | Backend unreachable | Show a clear connection error and Retry action |
 | Database unavailable (`/health` 503 or API 503) | Show a database error and Retry action; do not show empty-data guidance |
 | Pipeline trigger returns conflict (409) | Explain a run is already in progress and link to that run |
-| Pipeline trigger disabled (403) | Explain that manual runs are disabled in this environment |
+| Pipeline trigger refused (403) | Show the API's message: manual runs are disabled, or the request is not local (another machine, or an unconfigured proxy) |
 | Pipeline run fails | Show failure status and sanitized error summary; retain access to older data |
 | Invalid filter input | Display inline validation; do not send a malformed request |
 

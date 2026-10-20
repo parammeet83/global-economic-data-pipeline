@@ -148,7 +148,7 @@ A series that fails after retries, or whose received row count differs from `tot
 6. **Load + finalize (one transaction):** upsert dimensions, compute inserted/value-changed counts, upsert accepted observations, insert quality checks, and set the terminal status with a conditional update (`WHERE status = 'running'`). Any error rolls back the whole unit (D-18).
 7. If extraction fails structurally or step 6 rolls back, finalize the run as `failed` in a separate transaction with known counts, checks and a sanitized error summary.
 8. Set the terminal status using the run status rules below; counts follow `Backend_DB_Schema.md` §3.3 (`E = R + N + D + T`). A failed run must not be shown as successful merely because some records loaded; a failed run loads nothing.
-9. Write structured logs with run ID, stage, duration, counts, and error context (never secrets).
+9. Write structured logs with run ID, stage, duration, counts, and error context (never secrets): one JSON object per line from application loggers, with credentials redacted (D-40).
 10. The database rows are the authoritative quality report. Optionally (`WRITE_JSON_REPORT=true`) also write `{REPORTS_DIR}/run_{run_id}.json`; a failure to write it never changes run status. No Markdown/HTML report (D-16).
 
 ### Run status rules (D-15)
@@ -177,10 +177,12 @@ Prefix: `/api/v1`. Exact response schemas should be implemented as typed Pydanti
 | GET | `/api/v1/runs` | Paginated recent pipeline runs |
 | GET | `/api/v1/runs/{run_id}` | One run, its counts, quality checks and errors; also the polling endpoint for run status (D-24) |
 | GET | `/api/v1/quality/latest` | Checks of the most recent **terminal** run (including a failed one), or an empty result if none (D-17) |
-| POST | `/api/v1/pipeline/run` | Claim and start a manual run: **202** `{run_id, status:"running", status_url}`; **409** if a run is in progress; **403** if `ENABLE_MANUAL_TRIGGER` is false or the client is not loopback (D-23, D-38) |
+| POST | `/api/v1/pipeline/run` | Claim and start a manual run: **202** `{run_id, status:"running", status_url}`; **409** if a run is in progress; **403** if `ENABLE_MANUAL_TRIGGER` is false, or the request is not local: non-loopback `Host`, non-loopback client, or forwarding headers from a proxy not in `TRUSTED_PROXY_IPS` (D-23, D-38, D-39) |
 
 ### Manual trigger execution model
 The claim (step 1 of §6) happens synchronously in the request so the response can carry a real run ID. The rest of the pipeline runs as a FastAPI `BackgroundTasks` job after the response is sent, in the server's thread pool, using its own database sessions and the same function the CLI calls. Limitations: the run dies with the API process (including `uvicorn --reload` restarts) and is later recovered as stale; there is no queue, cancellation or progress percentage; a single API process is assumed (the database guard still prevents overlap); no authentication, so local/demo only.
+
+**Local-only guard (D-39).** The API is started bound to `127.0.0.1`. The trigger requires a loopback `Host` header and a loopback client. `X-Forwarded-For` is honoured only when the immediate peer is listed in `TRUSTED_PROXY_IPS`, and the client is the right-most entry that is not a trusted proxy, so client-supplied values cannot override what the proxy appended. Forwarding headers from an unlisted peer are refused. This guard limits an unauthenticated demo control to one machine; it is **not** a substitute for authentication and rate limiting, which any deployment beyond this machine needs.
 
 ### API rules
 - Validate year boundaries, allowed sort fields, page size, indicator codes and country codes.
@@ -221,6 +223,7 @@ Configuration is environment-driven, loaded by a `pydantic-settings` class from 
 | `STALE_RUN_MINUTES` | `60` | Must exceed the longest measured run (D-20) |
 | `DEFAULT_INDICATOR_CODE`, `DEFAULT_COUNTRY_CODES` | `NY.GDP.MKTP.CD`, `IND,USA,CHN,DEU,BRA` | Must be subsets of configured codes (D-26) |
 | `ENABLE_MANUAL_TRIGGER` | `true` locally | Must be `false` in any non-local deployment |
+| `TRUSTED_PROXY_IPS` | empty (`.env.example`: `127.0.0.1,::1`) | IPs of proxies whose `X-Forwarded-For` is trusted for the local-only trigger check; the local Vite dev proxy needs `127.0.0.1,::1` (D-39) |
 | `WRITE_JSON_REPORT`, `REPORTS_DIR` | `false`, `reports` | Optional JSON export (D-16) |
 | `LOG_LEVEL` | `INFO` | |
 | `CORS_ORIGINS` | `http://localhost:5173` | Vite dev server origin |

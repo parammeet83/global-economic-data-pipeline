@@ -13,6 +13,9 @@ from tests.integration.helpers import insert_run
 
 pytestmark = pytest.mark.integration
 
+# A browser on this machine talking to the API directly (loopback Host header and TCP peer).
+LOCAL = {"base_url": "http://127.0.0.1:8000", "client": ("127.0.0.1", 50000)}
+
 
 @pytest.fixture
 def settings(make_settings):
@@ -22,7 +25,7 @@ def settings(make_settings):
 @pytest.fixture
 def client(settings, session_factory):
     app = create_app(settings, session_factory=session_factory, source_client=FakeSource())
-    with TestClient(app) as test_client:
+    with TestClient(app, **LOCAL) as test_client:
         yield test_client
 
 
@@ -210,11 +213,79 @@ def test_trigger_conflict_returns_409_with_running_run_id(client, db_connection)
 
 def test_trigger_disabled_returns_403(make_settings, session_factory):
     settings = make_settings(**TEST_SETTINGS, enable_manual_trigger=False)
-    with TestClient(create_app(settings, session_factory=session_factory, source_client=FakeSource())) as client:
+    with TestClient(create_app(settings, session_factory=session_factory, source_client=FakeSource()), **LOCAL) as client:
         assert_error(client.post("/api/v1/pipeline/run"), 403, "manual_trigger_disabled")
 
 
 def test_trigger_refuses_non_local_clients(settings, session_factory):
     app = create_app(settings, session_factory=session_factory, source_client=FakeSource())
-    with TestClient(app, client=("203.0.113.7", 50000)) as client:
+    with TestClient(app, base_url="http://127.0.0.1:8000", client=("203.0.113.7", 50000)) as client:
         assert_error(client.post("/api/v1/pipeline/run"), 403, "manual_trigger_local_only")
+
+
+# -- local-only guard: direct and proxied requests (D-39) ------------------
+
+VITE_PROXY = ["127.0.0.1", "::1"]
+
+
+@pytest.fixture
+def trigger(make_settings, session_factory):
+    """POST /pipeline/run with a given TCP peer, Host header, extra headers and trusted proxies."""
+
+    def post(*, peer="127.0.0.1", host="127.0.0.1:8000", headers=None, trusted=None):
+        settings = make_settings(**TEST_SETTINGS, trusted_proxy_ips=",".join(trusted or []))
+        app = create_app(settings, session_factory=session_factory, source_client=FakeSource())
+        with TestClient(app, base_url=f"http://{host}", client=(peer, 50000)) as client:
+            return client.post("/api/v1/pipeline/run", headers=headers or {})
+
+    return post
+
+
+def test_direct_local_request_is_accepted(trigger):
+    assert trigger().status_code == 202
+
+
+def test_local_browser_through_trusted_vite_proxy_is_accepted(trigger):
+    # Vite (xfwd) appends the browser's address; the Host header is the dev server's.
+    response = trigger(host="localhost:5173", headers={"X-Forwarded-For": "127.0.0.1"}, trusted=VITE_PROXY)
+    assert response.status_code == 202
+
+
+def test_lan_client_through_trusted_vite_proxy_is_refused(trigger):
+    response = trigger(host="localhost:5173", headers={"X-Forwarded-For": "192.168.1.20"}, trusted=VITE_PROXY)
+    assert response.json()["error"]["code"] == "manual_trigger_local_only"
+
+
+def test_forged_loopback_entry_before_the_real_client_is_ignored(trigger):
+    # The client sent "X-Forwarded-For: 127.0.0.1"; the proxy appended the real address.
+    response = trigger(host="localhost:5173", headers={"X-Forwarded-For": "127.0.0.1, 192.168.1.20"}, trusted=VITE_PROXY)
+    assert response.status_code == 403
+
+
+def test_forwarding_headers_from_an_unconfigured_proxy_fail_closed(trigger):
+    response = trigger(host="localhost:5173", headers={"X-Forwarded-For": "127.0.0.1"})
+    error = response.json()["error"]
+    assert (response.status_code, error["code"]) == (403, "manual_trigger_local_only")
+    assert "TRUSTED_PROXY_IPS" in error["message"]
+
+
+@pytest.mark.parametrize("header", [{"Forwarded": "for=127.0.0.1"}, {"X-Real-IP": "127.0.0.1"}])
+def test_other_forwarding_headers_are_not_trusted(trigger, header):
+    assert trigger(headers=header, trusted=VITE_PROXY).status_code == 403
+
+
+def test_non_loopback_host_header_is_refused(trigger):
+    # A browser on the LAN reaching an exposed dev server sends the server's LAN address as Host.
+    assert trigger(host="192.168.1.5:5173").status_code == 403
+
+
+def test_remote_peer_cannot_claim_loopback_with_a_forged_header(trigger):
+    response = trigger(peer="203.0.113.7", headers={"X-Forwarded-For": "127.0.0.1"}, trusted=VITE_PROXY)
+    assert response.status_code == 403
+
+
+def test_disabled_trigger_still_returns_403_before_the_local_check(make_settings, session_factory):
+    settings = make_settings(**TEST_SETTINGS, enable_manual_trigger=False)
+    app = create_app(settings, session_factory=session_factory, source_client=FakeSource())
+    with TestClient(app, base_url="http://192.168.1.5:8000", client=("203.0.113.7", 50000)) as client:
+        assert client.post("/api/v1/pipeline/run").json()["error"]["code"] == "manual_trigger_disabled"

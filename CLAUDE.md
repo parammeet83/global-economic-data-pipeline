@@ -58,7 +58,7 @@ Backend layering (`backend/src/`): `api/` (routers + Pydantic schemas), `pipelin
 
 Backend (from `backend/`):
 - Install: `pip install -r requirements-dev.txt` (runtime deps are in `requirements.txt`; dev file includes it)
-- Run API: `uvicorn src.main:app --reload`  (health at `/health`)
+- Run API: `uvicorn src.main:app --host 127.0.0.1 --reload`  (health at `/health`; keep it on loopback — the manual trigger is local-only, D-39)
 - Migrate: `alembic upgrade head`
 - New migration: `alembic revision --autogenerate -m "message"` · check models vs migrations: `alembic check` · test DB: `alembic -x db=test upgrade head`
 - Run pipeline: `python -m src.pipeline.cli run [--triggered-by scheduler]` (exit codes 0–4, TRD §13)

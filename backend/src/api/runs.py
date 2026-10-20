@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import ipaddress
 import logging
 import uuid
 from typing import Annotated
@@ -11,6 +10,7 @@ from fastapi import APIRouter, BackgroundTasks, Query, Request, Response, status
 
 from src.api.deps import SessionDep, SettingsDep
 from src.api.errors import ApiError, not_found
+from src.api.local_only import local_request_error
 from src.api.schemas import Page, QualityCheck, QualityLatest, RunAccepted, RunDetail, RunSummary
 from src.pipeline.orchestrator import execute_run, start_run
 from src.pipeline.runs import RunInProgressError
@@ -20,8 +20,6 @@ from src.services.analytics import latest_terminal_run
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["pipeline"])
-
-TEST_CLIENT_HOST = "testclient"
 
 
 def _detail(session, run) -> RunDetail:
@@ -61,16 +59,6 @@ def quality_latest(session: SessionDep) -> QualityLatest:
     return QualityLatest(run=RunSummary.model_validate(run), checks=checks)
 
 
-def _is_local(request: Request) -> bool:
-    host = request.client.host if request.client else ""
-    if host in (TEST_CLIENT_HOST, "localhost"):
-        return True
-    try:
-        return ipaddress.ip_address(host).is_loopback
-    except ValueError:
-        return False
-
-
 @router.post(
     "/pipeline/run",
     status_code=status.HTTP_202_ACCEPTED,
@@ -81,11 +69,16 @@ def _is_local(request: Request) -> bool:
     },
 )
 def trigger_run(request: Request, response: Response, background: BackgroundTasks, settings: SettingsDep) -> RunAccepted:
-    """Local/demo only (D-23): claim a run synchronously, then execute it in the background."""
+    """Local/demo only (D-23, D-39): claim a run synchronously, then execute it in the background.
+
+    The local-only check is a guard for a demo machine, not authentication.
+    """
     if not settings.enable_manual_trigger:
         raise ApiError(status.HTTP_403_FORBIDDEN, "manual_trigger_disabled", "Manual pipeline runs are disabled in this environment.")
-    if not _is_local(request):
-        raise ApiError(status.HTTP_403_FORBIDDEN, "manual_trigger_local_only", "Manual pipeline runs are only accepted from this machine.")
+    refusal = local_request_error(request.client.host if request.client else None, request.headers, settings.trusted_proxy_ips)
+    if refusal:
+        logger.warning("Manual run refused: request is not local", extra={"event": "trigger_refused"})
+        raise ApiError(status.HTTP_403_FORBIDDEN, "manual_trigger_local_only", refusal)
 
     session_factory = request.app.state.session_factory
     try:
@@ -101,5 +94,5 @@ def trigger_run(request: Request, response: Response, background: BackgroundTask
     background.add_task(execute_run, run_id, session_factory, settings, request.app.state.source_client)
     status_url = f"/api/v1/runs/{run_id}"
     response.headers["Location"] = status_url
-    logger.info("Manual run accepted run_id=%s", run_id)
+    logger.info("Manual run accepted", extra={"event": "trigger_accepted", "run_id": run_id})
     return RunAccepted(run_id=run_id, status="running", status_url=status_url)

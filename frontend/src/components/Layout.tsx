@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import type { Health } from "../api/types";
+import { useLastRefresh } from "../hooks/useLastRefresh";
 
 const NAV = [
   { to: "/", label: "Overview", end: true },
@@ -40,6 +41,20 @@ function HealthIndicator() {
   );
 }
 
+export function LastRefresh() {
+  const at = useLastRefresh();
+  if (!at) return <span className="muted refresh">Not refreshed yet</span>;
+  const time = at.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  return (
+    <span className="muted refresh">
+      Last refresh{" "}
+      <time dateTime={at.toISOString()} title={at.toLocaleString("en-GB")}>
+        {time}
+      </time>
+    </span>
+  );
+}
+
 export function Layout({ title, children }: { title: string; children: ReactNode }) {
   useEffect(() => {
     document.title = `${title} · Global Economic Data Pipeline`;
@@ -73,7 +88,10 @@ export function Layout({ title, children }: { title: string; children: ReactNode
       <div className="main">
         <header className="topbar">
           <h1>{title}</h1>
-          <HealthIndicator />
+          <div className="topbar-status" aria-live="polite">
+            <LastRefresh />
+            <HealthIndicator />
+          </div>
         </header>
         <main className="content">{children}</main>
       </div>

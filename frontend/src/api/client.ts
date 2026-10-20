@@ -1,5 +1,7 @@
 // Typed client for the FastAPI backend. The browser never talks to the database.
 
+import { recordRefresh } from "./refresh";
+
 export type QueryValue = string | number | undefined | null | (string | number)[];
 
 /** A failed request. `kind` separates "backend unreachable" from HTTP errors from the API. */
@@ -52,6 +54,7 @@ async function request<T>(method: "GET" | "POST", path: string, params?: Record<
     const message = error?.message ?? (response.status === 503 ? "The database is unavailable." : `Request failed (HTTP ${response.status}).`);
     throw new ApiError("http", response.status, error?.code ?? "http_error", message, (error as Record<string, unknown>) ?? null);
   }
+  if (method === "GET") recordRefresh(); // fresh data was actually retrieved
   return body as T;
 }
 

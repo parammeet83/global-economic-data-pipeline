@@ -47,6 +47,6 @@ def check_database_connection(engine: Engine) -> bool:
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
     except Exception as exc:  # noqa: BLE001 - any failure means the database is not usable
-        logger.warning("Database connectivity check failed (%s)", type(exc).__name__)
+        logger.warning("Database connectivity check failed", extra={"event": "db_check_failed", "error_type": type(exc).__name__})
         return False
     return True

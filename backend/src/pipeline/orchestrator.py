@@ -147,7 +147,11 @@ def execute_run(
     def fail(summary: str) -> RunOutcome:
         counts["error_count"] = len(failures) + 1
         recorded = finalize_failure(session_factory, run_id, counts=counts, checks=checks, error_summary=summary)
-        logger.error("stage=finalize run_id=%s status=failed recorded=%s summary=%s", run_id, recorded, summary)
+        logger.error(
+            "Run failed",
+            extra={"event": "run_finished", "stage": "finalize", "run_id": run_id, "status": "failed", "recorded": recorded,
+                   "summary": summary, "duration_s": round(time.perf_counter() - started, 3), **counts},
+        )
         outcome = RunOutcome(run_id, "failed", {**counts, "records_loaded": 0, "records_inserted": 0, "records_value_changed": 0}, summary)
         _maybe_report(settings, outcome, checks)
         return outcome
@@ -164,7 +168,10 @@ def execute_run(
                 failures.append(f"{code}: {exc.kind} ({exc})")
                 if isinstance(exc, PaginationError):
                     mismatches.append(code)
-        logger.info("stage=extract run_id=%s series_ok=%d series_failed=%d", run_id, len(series_ok), len(failures))
+        logger.info(
+            "Extraction finished",
+            extra={"event": "stage_finished", "stage": "extract", "run_id": run_id, "series_ok": len(series_ok), "series_failed": len(failures)},
+        )
         checks.append(extraction_check(len(settings.indicator_codes), len(failures), failures))
         checks.append(page_count_check(len(settings.indicator_codes), mismatches))
         if not series_ok:
@@ -186,15 +193,16 @@ def execute_run(
             records_transformed=result.transformed,
         )
         logger.info(
-            "stage=transform run_id=%s extracted=%d rejected=%d null_skipped=%d duplicates_dropped=%d transformed=%d",
-            run_id, result.extracted, result.rejected, result.null_skipped, result.duplicates_dropped, result.transformed,
+            "Transformation finished",
+            extra={"event": "stage_finished", "stage": "transform", "run_id": run_id, "rejection_reasons": result.rejection_reasons,
+                   **{k: v for k, v in counts.items() if k.startswith("records_")}},
         )
         if result.transformed == 0:
             return fail(_summary(counts, failures, "No load-ready rows") or "No load-ready rows")
     except PipelineFailure as exc:
         return fail(str(exc))
     except Exception as exc:  # noqa: BLE001 - any unexpected error ends the run as failed
-        logger.exception("stage=extract_transform run_id=%s unexpected_error", run_id)
+        logger.error("Unexpected error during extract/transform", exc_info=exc, extra={"event": "unexpected_error", "stage": "extract_transform", "run_id": run_id})
         return fail(f"Unexpected error during extract/transform ({type(exc).__name__})")
 
     status = determine_status(
@@ -232,17 +240,18 @@ def execute_run(
             counts.update(records_loaded=loaded, records_inserted=inserted, records_value_changed=changed)
             finalize_run(session, run_id, status=status, counts=counts, checks=checks, error_summary=summary)
     except RunNoLongerRunningError:
-        logger.error("stage=load run_id=%s rolled_back=true reason=recovered_as_stale", run_id)
+        logger.error("Load rolled back: run was recovered as stale", extra={"event": "load_rolled_back", "stage": "load", "run_id": run_id, "reason": "recovered_as_stale"})
         counts.update(records_loaded=0, records_inserted=0, records_value_changed=0)
         return RunOutcome(run_id, "failed", counts, "Run was recovered as stale before it finished; nothing was loaded")
     except Exception as exc:  # noqa: BLE001 - load rolled back; record the failure separately (T3)
-        logger.error("stage=load run_id=%s rolled_back=true error=%s", run_id, type(exc).__name__)
+        logger.error("Load rolled back", extra={"event": "load_rolled_back", "stage": "load", "run_id": run_id, "error_type": type(exc).__name__})
         return fail(_summary(counts, failures, f"Load failed and was rolled back ({type(exc).__name__})") or "Load failed")
 
     outcome = RunOutcome(run_id, status, counts, summary)
     logger.info(
-        "stage=finalize run_id=%s status=%s loaded=%d inserted=%d value_changed=%d duration_s=%.2f",
-        run_id, status, counts["records_loaded"], counts["records_inserted"], counts["records_value_changed"], time.perf_counter() - started,
+        "Run finished",
+        extra={"event": "run_finished", "stage": "finalize", "run_id": run_id, "status": status,
+               "duration_s": round(time.perf_counter() - started, 3), **counts},
     )
     _maybe_report(settings, outcome, checks)
     return outcome

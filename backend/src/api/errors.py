@@ -67,10 +67,10 @@ def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(OperationalError)
     @app.exception_handler(DBAPIError)
     async def _database(_: Request, exc: DBAPIError) -> JSONResponse:
-        logger.warning("Database error while handling a request (%s)", type(exc).__name__)
+        logger.warning("Database error while handling a request", extra={"event": "api_database_error", "error_type": type(exc).__name__})
         return error_response(status.HTTP_503_SERVICE_UNAVAILABLE, "database_unavailable", "The database is unavailable. Try again later.")
 
     @app.exception_handler(Exception)
     async def _unexpected(_: Request, exc: Exception) -> JSONResponse:
-        logger.error("Unhandled error while handling a request (%s)", type(exc).__name__, exc_info=exc)
+        logger.error("Unhandled error while handling a request", exc_info=exc, extra={"event": "api_unhandled_error"})
         return error_response(status.HTTP_500_INTERNAL_SERVER_ERROR, "internal_error", "An unexpected error occurred.")

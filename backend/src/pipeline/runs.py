@@ -82,7 +82,7 @@ def claim_run(
     try:
         with session_factory() as session, session.begin():
             for recovered in recover_stale_runs(session, stale_minutes):
-                logger.warning("stage=claim run_id=%s recovered_stale=true", recovered)
+                logger.warning("Recovered stale run as failed", extra={"event": "stale_run_recovered", "stage": "claim", "run_id": recovered})
             session.add(
                 PipelineRun(
                     run_id=run_id,
@@ -97,7 +97,7 @@ def claim_run(
         if getattr(getattr(exc.orig, "diag", None), "constraint_name", None) == ONE_RUNNING_INDEX:
             raise RunInProgressError(running_run_id(session_factory)) from None
         raise
-    logger.info("stage=claim run_id=%s triggered_by=%s", run_id, triggered_by)
+    logger.info("Run claimed", extra={"event": "run_claimed", "stage": "claim", "run_id": run_id, "triggered_by": triggered_by})
     return run_id
 
 
@@ -160,8 +160,10 @@ def finalize_failure(
             finalize_run(session, run_id, status="failed", counts=safe_counts, checks=checks, error_summary=error_summary)
         return True
     except RunNoLongerRunningError:
-        logger.warning("stage=finalize run_id=%s already_finalized=true", run_id)
+        logger.warning("Run was already finalized", extra={"event": "run_already_finalized", "stage": "finalize", "run_id": run_id})
         return False
     except Exception as exc:  # noqa: BLE001 - the run stays 'running' until stale recovery (D-18 step 5)
-        logger.error("stage=finalize run_id=%s could_not_record_failure=%s", run_id, type(exc).__name__)
+        logger.error(
+            "Could not record run failure", extra={"event": "failure_not_recorded", "stage": "finalize", "run_id": run_id, "error_type": type(exc).__name__}
+        )
         return False

@@ -15,7 +15,8 @@ Per-phase record of what was built and verified. Test counts are copied from act
 | 8 | `35705dd` | Explore, Compare, Runs (trigger + polling), Run detail, Quality, About (Vitest 26 passed) |
 | 9 | `cd8c4f0` | Windows Task Scheduler wrapper, registration script, guide |
 | 10 | `de53453` | Fix: unit-test settings isolated from environment variables (found by fresh-clone check) |
-| 10–11 | see final report | README, screenshots, sample report, fresh-clone verification, docs sync |
+| 10–11 | `6315e3c` | README, screenshots, sample report, partial fresh-clone check, docs sync |
+| Remediation | not yet committed | Proxy-aware trigger guard, JSON logs, last-refresh indicator, status corrections |
 
 ## Phase 2 — Database schema, migrations and CI
 
@@ -30,7 +31,7 @@ Per-phase record of what was built and verified. Test counts are copied from act
 - `pytest` (from `backend/`): **48 passed**, 94% coverage, no warnings. Integration tests cover migration upgrade/downgrade/upgrade in a throwaway schema, model/migration parity, every constraint family, the one-running-run guard, upsert idempotency and rollback.
 - After the run, `gedp_test` tables held 0 rows and no temporary schemas remained.
 
-**CI on GitHub:** the repository is private, so the Actions result could not be read without credentials; check the repository's Actions tab. The same steps (migrate, `alembic check`, `pytest`) pass locally.
+**CI on GitHub:** not readable from the development environment (private repository). The owner later verified that the runs for `de53453` and `6315e3c` were green. Runs for `a3892da`–`cd8c4f0` are unconfirmed and most likely failed because of the test-isolation bug fixed in `de53453`.
 
 ## Phase 3 — World Bank API client
 
@@ -122,7 +123,7 @@ Per-phase record of what was built and verified. Test counts are copied from act
 
 ## Phases 10–11 — CI, README, GitHub and portfolio polish
 
-**Fresh-clone verification** (clone of `origin/main` at `cd8c4f0` into a temporary folder, without its own `.env`, `.venv` or `node_modules`; tested with the root `.venv`, database URLs passed through the environment):
+**Partial fresh-clone check** (clone of `origin/main` at `cd8c4f0` into a temporary folder, without its own `.env`, `.venv` or `node_modules`; tested with the **existing** root `.venv` and **existing** databases, database URLs passed through the environment). A full walkthrough on a clean environment has not been performed:
 - `alembic -x db=test check`: no drift.
 - `pytest`: **1 failed, 156 passed** — `test_defaults_load_with_only_database_url` failed because `TEST_DATABASE_URL` was set as an environment variable, exactly as CI sets it. The unit-test settings fixture ignored `backend/.env` but not the environment, so **the backend CI job was most likely failing since Phase 2** (the private repository's Actions results could not be read here).
 - Fix `de53453`: the fixture clears every setting variable per test. Afterwards: 157 passed locally; unit suite passes with CI-style variables set.
@@ -134,6 +135,39 @@ Per-phase record of what was built and verified. Test counts are copied from act
 - `docs/samples/quality-report-sample.json`: the optional JSON export from real run `fff6aa0b` (success, loaded 600, inserted 0, value changed 0).
 
 **Open items for the owner**
-- Confirm the GitHub Actions run for the latest commit is green (not readable from this environment).
+- Perform the fresh-clone walkthrough on a clean environment (new virtual environment and new databases).
 - Create the scheduled task with `scripts/register_task.ps1` if wanted.
 - Choose a code license before publishing.
+
+## Remediation pass (after the final audit; not yet committed)
+
+**Changes**
+- **Trigger guard (D-39), `backend/src/api/local_only.py`:**
+  - requires a loopback `Host` and a loopback client;
+  - trusts `X-Forwarded-For` only from peers in `TRUSTED_PROXY_IPS` (empty by default), using the right-most untrusted entry;
+  - refuses forwarding headers from an unlisted peer (fail closed);
+  - the test-only "testclient" allowance was removed from production code.
+- **Vite proxy and binding:** the dev server binds to 127.0.0.1, and its proxy uses `xfwd` and keeps `Host`. Documented API command: `uvicorn src.main:app --host 127.0.0.1`.
+- **JSON application logs (D-40), `backend/src/core/logging.py`:** every log call now carries named event fields. Redaction covers URL credentials, `password=`-style pairs and secret-named fields; exceptions are logged without tracebacks.
+- **Last-refresh indicator (UIUX §3):** the top bar shows "Not refreshed yet" until the first successful data GET, then that response's time. Health checks, failed requests and POSTs do not update it.
+- **Documentation:** status corrected (CI green for `de53453`/`6315e3c`; Task Scheduler not registered; fresh-clone walkthrough incomplete).
+
+**Verified (2026-10-20)**
+- **Backend:** `pytest` **199 passed** (117 unit, 82 integration on `gedp_test`), 97% coverage, no warnings. One new test initially failed in the full suite only (root-logger state left by earlier app startups); the test was isolated and now passes in any order.
+- **Frontend:** `tsc --noEmit` clean; `npm run build` clean; Vitest **29 passed** (8 files).
+- **Checks:** `pip check` clean; `alembic check` clean on `gedp_dev` and `gedp_test`.
+- **End to end:** real backend bound to 127.0.0.1, Vite deliberately exposed with `--host 0.0.0.0`, requests from this machine's LAN address.
+
+  | Scenario | Result |
+  |---|---|
+  | Backend reached via the LAN address | Connection refused |
+  | LAN client through Vite | 403 |
+  | LAN client through Vite, spoofed `Host` and forged `X-Forwarded-For` | 403 |
+  | Forwarding headers without `TRUSTED_PROXY_IPS` | 403, fail closed |
+  | Local browser through Vite, nothing trusted | 403 |
+  | Local browser through Vite, proxy trusted | Passed the guard (reached the in-progress check: 409) |
+  | Direct local request | 202 |
+
+  All application log lines were valid JSON, with no `postgresql` or `password` text.
+
+**Incident during verification:** my end-to-end script stopped the API while two API-triggered runs were still executing (`81f4832f`, `983325ba`), leaving them `running`. They were recovered by the application's stale-run recovery (`STALE_RUN_MINUTES=1` for the recovering invocation only) and remain in `gedp_dev` history as `failed` with the "Abandoned" summary; the recovering CLI run `e18800a3` succeeded (loaded 600, inserted 0, value changed 0). No rows are left `running`; no data was deleted.

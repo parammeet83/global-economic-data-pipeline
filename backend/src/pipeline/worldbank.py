@@ -203,7 +203,10 @@ class WorldBankClient:
             if attempt == attempts:
                 raise error
             delay = self._retry_delay(attempt, response)
-            logger.warning("World Bank request failed (%s, %s); retry %d/%d in %.1fs", path, error.kind, attempt, self.max_retries, delay)
+            logger.warning(
+                "World Bank request failed; retrying",
+                extra={"event": "source_retry", "endpoint": path, "error_kind": error.kind, "attempt": attempt, "max_retries": self.max_retries, "delay_s": round(delay, 2)},
+            )
             self._sleep(delay)
         raise AssertionError("unreachable")  # pragma: no cover
 
@@ -258,7 +261,10 @@ class WorldBankClient:
         """One paginated series for all countries (D-10). Rows are returned unmodified."""
         path = f"country/{';'.join(country_codes)}/indicator/{indicator_code}"
         meta, rows = self.fetch_all_pages(path, {"date": f"{start_year}:{end_year}", "per_page": self.per_page})
-        logger.info("Fetched %s: %d rows in %d page(s)", indicator_code, len(rows), max(meta.pages, 1))
+        logger.info(
+            "Fetched indicator series",
+            extra={"event": "series_fetched", "indicator_code": indicator_code, "rows": len(rows), "pages": max(meta.pages, 1)},
+        )
         return SeriesResult(
             indicator_code=indicator_code,
             rows=rows,
