@@ -134,6 +134,8 @@ Every response is classified before its data is used (D-10):
 | HTTP 200, JSON not shaped `[metadata, data]`, or data `null` while `total > 0` | Malformed response | No |
 | HTTP 200, `total == 0` and data `null` or `[]` | Valid empty result | n/a |
 
+Observed API behavior (2026-10): a `date` range with no data at all can be ignored, and all years are returned. The client therefore never relies on the API to filter years; the `year_in_range` check rejects out-of-window rows.
+
 A series that fails after retries, or whose received row count differs from `total` or whose `pages` value changes between pages, is discarded entirely and counted in `error_count`.
 
 ## 6. Pipeline contract
