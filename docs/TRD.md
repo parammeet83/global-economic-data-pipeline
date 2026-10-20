@@ -253,7 +253,7 @@ Validate configuration at startup and fail with an actionable message when manda
 - API contract tests: query validation, pagination, expected response schema, error cases, 202/409/403 trigger responses.
 - Frontend tests: filter behavior, loading/empty/error states, number formatting, charts with sample data, missing values never rendered as zero.
 - End-to-end smoke check: start services, run pipeline once, verify records and run metadata, load dashboard.
-- Database tests use **only** `TEST_DATABASE_URL` (a dedicated `*_test` database) with migrations applied; a guard refuses to run against the development database (D-06).
+- Database tests use **only** `TEST_DATABASE_URL` (a dedicated `*_test` database) with migrations applied; a guard refuses to run against the development database (D-06). Each test runs inside a transaction that is rolled back, so tests never truncate or drop data (D-37).
 - CI must not rely on live World Bank availability. All automated tests mock the source (via an injected `requests.Session` and `responses`). A separate optional live check is marked `live` and excluded by default.
 - CI (GitHub Actions) runs backend tests against a PostgreSQL service container from the end of Phase 2; frontend build from Phase 7; frontend tests from Phase 8 (D-32).
 

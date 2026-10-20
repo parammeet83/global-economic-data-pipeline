@@ -90,3 +90,7 @@ Each entry records a decision, its rationale and its impact. Detailed requiremen
 **D-35 — `.gitignore` additions (M9).** `node_modules/`, `reports/`, `coverage/`, `*.tsbuildinfo`. *Why:* frontend and report outputs must never be committed. *Impact:* the existing `.env` rules and the `!.env.example` exception are unchanged.
 
 **D-36 — Redundant index dropped.** `(country_code, year)` is removed because the composite primary key already serves country-first lookups. *Why:* add indexes only for a real query need. *Impact:* `(indicator_code, year)` is kept.
+
+## Amendments during implementation
+
+**D-37 — Non-destructive test isolation (Phase 2).** Database tests never truncate, drop or reset anything. The test database gets its schema once via `alembic upgrade head` (additive); each test runs in an outer transaction that is always rolled back, with application commits becoming savepoints (`join_transaction_mode="create_savepoint"`). Migration upgrade/downgrade is tested in a throwaway schema inside a rolled-back transaction. *Why:* the owner prohibited destructive resets of either database. *Impact:* all database code takes a `sessionmaker`, so tests can bind it to the test connection; integration tests fail (not skip) in CI when the database is missing.

@@ -1,6 +1,6 @@
 # Global Economic Data Pipeline & Analytics Dashboard
 
-> **Status: in development.** Phase 1 (backend foundation: configuration and a `/health` endpoint) is implemented and under review. The data pipeline, database schema, analytics API and dashboard are **planned, not yet built**. Setup and usage sections describe only what currently works.
+> **Status: in development.** Phases 0–2 are complete: configuration, `/health`, the PostgreSQL schema with Alembic migrations, and CI. The World Bank pipeline, analytics API and dashboard are **planned, not yet built**. Setup and usage sections describe only what currently works.
 
 A data-engineering portfolio project that will collect public economic indicators from the [World Bank Indicators API](https://datahelpdesk.worldbank.org/knowledgebase/topics/125589-developer-information), validate them, load them idempotently into PostgreSQL, and present them through a FastAPI backend and a React dashboard. The focus is reliability: retries and pagination, explicit validation, duplicate-safe reloads, audited pipeline runs and per-run data-quality results.
 
@@ -45,8 +45,8 @@ Ten configurable countries (ISO-3 codes), years 2005–2024 by default. Missing 
 | Phase | Scope | Status |
 |---|---|---|
 | 0 | Requirements reconciliation, decision log, repository foundation | Done |
-| 1 | Local environment, PostgreSQL, configuration, `/health` | Implemented, in review |
-| 2 | Database schema, migrations, CI | Not started |
+| 1 | Local environment, PostgreSQL, configuration, `/health` | Done |
+| 2 | Database schema, migrations, CI | Done |
 | 3 | World Bank API client | Not started |
 | 4 | Transformation and validation | Not started |
 | 5 | Idempotent loader, run lifecycle, CLI | Not started |
@@ -105,7 +105,10 @@ pip install -r requirements-dev.txt
 Copy-Item .env.example .env                # .env is git-ignored
 notepad .env                               # replace both CHANGE_ME values with your gedp_app password
 python -m src.core.config                  # checks settings; prints databases without the password
+alembic upgrade head                       # creates/updates the schema in gedp_dev (additive)
 ```
+
+Migrations: `alembic upgrade head` targets `DATABASE_URL`; `alembic -x db=test upgrade head` targets `TEST_DATABASE_URL`. `alembic check` reports any difference between the models and the migrations. The database URL is never stored in `alembic.ini`.
 
 If the password contains special characters such as `@ : / ? # %`, URL-encode them in `.env` (for example `@` becomes `%40`).
 
@@ -131,7 +134,7 @@ From `backend/` with the virtual environment active:
 ```powershell
 pytest                       # all tests; integration tests are skipped if TEST_DATABASE_URL is not configured
 pytest tests/unit            # unit tests only (no database needed)
-pytest -m integration        # PostgreSQL integration tests (uses gedp_test, read-only in Phase 1)
+pytest -m integration        # PostgreSQL integration tests (gedp_test only; each test is rolled back)
 pytest --cov=src             # with a coverage report
 ```
 

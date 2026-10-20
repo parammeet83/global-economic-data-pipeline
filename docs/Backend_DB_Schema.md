@@ -230,7 +230,7 @@ The partial unique index means a second `INSERT` of a `running` row fails with a
 
 - Create a SQLAlchemy session per request/task and close it deterministically. Background pipeline runs open their own sessions; they never reuse a request's session.
 - Use transaction contexts for writes. Pipeline transaction boundaries: claim (T1) → load + finalize (T2) → failure finalization (T3), as defined in TRD §6 (D-18).
-- Tests use only `TEST_DATABASE_URL`, pointing to a dedicated `*_test` database; the test setup refuses to run against the development database (D-06).
+- Tests use only `TEST_DATABASE_URL`, pointing to a dedicated `*_test` database; the test setup refuses to run against the development database (D-06). Tests isolate themselves with a rolled-back outer transaction, never with TRUNCATE or DROP (D-37).
 - Never construct SQL using user-provided string concatenation.
 - Use bound parameters and validated filters.
 - Keep database credentials in an environment variable and ignore `.env` in Git.

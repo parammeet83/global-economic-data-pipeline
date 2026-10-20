@@ -1,10 +1,19 @@
-"""SQLAlchemy engine creation and the database connectivity check."""
+"""SQLAlchemy engine/session creation and the database connectivity check.
+
+All database work goes through a ``sessionmaker`` so the API, CLI and tests share
+one session lifecycle: one session per request or pipeline step, closed
+deterministically (Schema §8). Tests bind the factory to a connection whose
+outer transaction is rolled back, so nothing they write persists.
+"""
 
 import logging
 
 from pydantic import SecretStr
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session, sessionmaker
+
+SessionFactory = sessionmaker[Session]
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +29,11 @@ def create_db_engine(database_url: SecretStr) -> Engine:
         pool_pre_ping=True,
         connect_args={"connect_timeout": CONNECT_TIMEOUT_SECONDS},
     )
+
+
+def create_session_factory(engine: Engine) -> SessionFactory:
+    """Sessions that keep loaded attributes after commit (results are returned to callers)."""
+    return sessionmaker(bind=engine, expire_on_commit=False)
 
 
 def check_database_connection(engine: Engine) -> bool:
