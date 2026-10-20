@@ -12,7 +12,8 @@ Per-phase record of what was built and verified. Test counts are copied from act
 | 5 | `1b4d868` | Loader, run lifecycle, orchestrator, CLI (127 passed) |
 | 6 | `9543340` | FastAPI analytics, runs, quality and trigger endpoints (157 passed) |
 | 7 | `237abe4` | React/TypeScript/Vite shell, API client, Overview page, frontend CI (Vitest 5 passed) |
-| 8 | see Phase 9 entry | Explore, Compare, Runs (trigger + polling), Run detail, Quality, About; Vitest |
+| 8 | `35705dd` | Explore, Compare, Runs (trigger + polling), Run detail, Quality, About (Vitest 26 passed) |
+| 9 | see Phase 10 entry | Windows Task Scheduler wrapper, registration script, guide |
 
 ## Phase 2 — Database schema, migrations and CI
 
@@ -99,3 +100,20 @@ Per-phase record of what was built and verified. Test counts are copied from act
 - `npm run build`: succeeds with no warnings.
 - `npm test`: **26 passed** in 7 files (formatting and missing values, chart gaps as null, filter validation and request parameters, comparison unavailable list, trigger confirm → 202 → polling → success, cancel, 409, 403, quality never green for a failed run, Overview states).
 - Real end-to-end: every page captured with headless Edge against the API and `gedp_dev`, at 1440 px and at a true 320 px viewport.
+
+## Phase 9 — Scheduling
+
+**Built**
+- `scripts/run_pipeline.ps1`: runs `python -m src.pipeline.cli run --triggered-by scheduler` from `backend/` with the root `.venv`, logs to `logs/` (git-ignored) and exits with the CLI exit code.
+- `scripts/register_task.ps1`: creates a daily task (logged-on user, no stored password, "do not start a new instance", 1-hour limit). **Not run**: creating a Windows scheduled task is left to the owner.
+- `docs/SCHEDULING.md`: setup (script or Task Scheduler UI), verification, disable/remove commands, exit-code table, troubleshooting.
+
+**Incident during verification (resolved)**
+- The first wrapper version piped the CLI's stderr through Windows PowerShell 5.1 with `$ErrorActionPreference = "Stop"`. The first log line on stderr became a terminating error, aborting the script and killing the run it had just claimed (`6036dd1f`), which was left `running`.
+- Fix: `cmd.exe` now performs the redirection and the exit code comes straight from Python.
+- The orphaned row was cleared by the application's own stale-run recovery (D-20), not by editing the database. The fixed wrapper was run with `STALE_RUN_MINUTES=1` for that invocation only. Before the threshold passed, two attempts were correctly refused with exit code 3. After it, the claim logged `recovered_stale=true`, the abandoned run became `failed` with the standard "Abandoned" summary (kept in history), and scheduled run `4f258275` succeeded.
+
+**Verified**
+- Scheduled-style run via the wrapper: exit code 0, `triggered_by=scheduler`, loaded=600, inserted=0, value_changed=0, log written to `logs/`.
+- Overlap refusal (exit 3) and stale recovery were observed for real on `gedp_dev`.
+- Not verified: an actual Task Scheduler trigger, because the task has not been created.

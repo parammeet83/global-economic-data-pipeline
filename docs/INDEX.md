@@ -11,7 +11,8 @@ This folder contains the six planning documents for **Global Economic Data Pipel
 
 Supporting record:
 
-- [DECISIONS.md](DECISIONS.md) — decision log (`D-xx`): each agreed decision from the Phase 0 review and later amendments, with its rationale, impact, and any change from the v1.0 specifications.
-- [DEVELOPMENT_LOG.md](DEVELOPMENT_LOG.md) — per-phase record of what was built, the commit, tests run and their actual results. Detailed requirements stay in the six documents above.
+- [DECISIONS.md](DECISIONS.md) — decision log (`D-xx`): each agreed decision from the Phase 0 review and later amendments, with its rationale, impact, and any change from the v1.0 specifications. Detailed requirements stay in the six documents above.
+- [SCHEDULING.md](SCHEDULING.md) — Windows Task Scheduler setup, exit codes and troubleshooting.
+- [DEVELOPMENT_LOG.md](DEVELOPMENT_LOG.md) — per-phase record of what was built, the commit, tests run and their actual results.
 
 Recommended order: PRD → TRD → DB Schema → Web App Flow → UI/UX Spec → Implementation Plan, with DECISIONS for the reasoning behind v1.1 changes. Keep these documents at `docs/` in the repository and ask Claude Code to consult them before implementing a phase.
