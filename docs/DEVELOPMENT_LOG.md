@@ -8,7 +8,8 @@ Per-phase record of what was built and verified. Test counts are copied from act
 | 1 | `477dcfb` | Settings, `/health`, unit + integration tests (26 passed) |
 | 2 | `a3892da` | Schema, migrations, repositories, CI (48 passed) |
 | 3 | `a40d4af` | World Bank client: classification, retries, pagination (71 passed) |
-| 4 | see Phase 5 entry | pandas/Pandera transform, counts, quality checks, status rules |
+| 4 | `34b281c` | pandas/Pandera transform, counts, quality checks, status rules (105 passed) |
+| 5 | see Phase 6 entry | Loader, run lifecycle, orchestrator, CLI |
 
 ## Phase 2 — Database schema, migrations and CI
 
@@ -48,3 +49,15 @@ Per-phase record of what was built and verified. Test counts are copied from act
 **Verified**
 - `pytest tests/unit/test_transform.py tests/unit/test_quality.py`: **34 passed**, no warnings.
 - Live extract + transform (no database writes) on the configured scope, 10 countries × 3 indicators × 2005–2024: E=600, R=0, N=0, D=0, T=600, all checks passed (2026-10-20).
+
+## Phase 5 — Loader, orchestration and CLI
+
+**Built**
+- `backend/src/pipeline/runs.py`: claim transaction with stale-run recovery (T1), conditional terminal update, separate failure finalization (T3); refused overlapping claims raise `RunInProgressError` (D-18, D-19, D-20).
+- `backend/src/pipeline/orchestrator.py`: `start_run` / `execute_run` / `run_pipeline`, shared by the CLI and (Phase 6) the API. Load, quality checks and terminal status commit in one transaction (T2); inserted and value-changed counts come from existing values read inside that transaction.
+- `backend/src/pipeline/cli.py`: `python -m src.pipeline.cli run [--triggered-by cli|scheduler]` with exit codes 0–4.
+- Database timestamps: `started_at` uses `now()`, `finished_at` uses `clock_timestamp()` so durations are wall-clock accurate across transactions.
+
+**Verified**
+- `pytest` (from `backend/`): **127 passed**, 96% coverage. New integration tests cover success, idempotent rerun, value changes, nulls, partial success (failed series, rejected rows, pagination error), failed runs (all series, metadata error payload, aggregate code), load rollback with a durable run record, refused overlapping claim, stale recovery, a stale-recovered run unable to commit, the JSON export and CLI exit codes 0–4.
+- Real data, `gedp_dev`, 2026-10-20: run 1 `success` loaded=600 inserted=600 value_changed=0 (pipeline 3.77 s); run 2 `success` loaded=600 inserted=0 value_changed=0 (1.78 s). Database: 600 observations, 600 distinct keys, 10 countries, 3 indicators, 18 passed checks, no zero-filled values.

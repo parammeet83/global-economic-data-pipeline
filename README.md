@@ -1,6 +1,6 @@
 # Global Economic Data Pipeline & Analytics Dashboard
 
-> **Status: in development.** Phases 0–2 are complete: configuration, `/health`, the PostgreSQL schema with Alembic migrations, and CI. The World Bank pipeline, analytics API and dashboard are **planned, not yet built**. Setup and usage sections describe only what currently works.
+> **Status: in development.** Phases 0–5 are complete: configuration, `/health`, the PostgreSQL schema with migrations, CI, and the World Bank pipeline (extract, validate, idempotent load, run history, CLI). The analytics API and dashboard are **planned, not yet built**. Setup and usage sections describe only what currently works.
 
 A data-engineering portfolio project that will collect public economic indicators from the [World Bank Indicators API](https://datahelpdesk.worldbank.org/knowledgebase/topics/125589-developer-information), validate them, load them idempotently into PostgreSQL, and present them through a FastAPI backend and a React dashboard. The focus is reliability: retries and pagination, explicit validation, duplicate-safe reloads, audited pipeline runs and per-run data-quality results.
 
@@ -47,9 +47,9 @@ Ten configurable countries (ISO-3 codes), years 2005–2024 by default. Missing 
 | 0 | Requirements reconciliation, decision log, repository foundation | Done |
 | 1 | Local environment, PostgreSQL, configuration, `/health` | Done |
 | 2 | Database schema, migrations, CI | Done |
-| 3 | World Bank API client | Not started |
-| 4 | Transformation and validation | Not started |
-| 5 | Idempotent loader, run lifecycle, CLI | Not started |
+| 3 | World Bank API client | Done |
+| 4 | Transformation and validation | Done |
+| 5 | Idempotent loader, run lifecycle, CLI | Done |
 | 6 | Analytics and pipeline API | Not started |
 | 7–8 | React dashboard | Not started |
 | 9 | Scheduling (Windows Task Scheduler) | Not started |
@@ -125,7 +125,14 @@ uvicorn src.main:app --reload
 
 ## Running the pipeline
 
-_Planned for Phase 5._
+From `backend/` with the virtual environment active (after `alembic upgrade head`):
+
+```powershell
+python -m src.pipeline.cli run                          # fetch, validate and load real World Bank data once
+python -m src.pipeline.cli run --triggered-by scheduler # same, recorded as a scheduled run
+```
+
+The command prints the run ID, status and counts (extracted, rejected, null-skipped, duplicates dropped, load-ready, loaded, inserted, value changed). Exit codes: `0` success, `1` failed, `2` partial success, `3` another run is already in progress, `4` configuration or database startup error. Running it again on unchanged source data loads the same rows with `inserted=0 value_changed=0`, which shows the load is idempotent.
 
 ## Running tests
 
