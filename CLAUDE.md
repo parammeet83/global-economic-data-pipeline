@@ -4,12 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state
 
-This project is **pre-code** (Phase 0, documentation only). The repository currently contains only:
-- `docs/` — six specification documents (the source of truth for all work), `DECISIONS.md` (decision log) and `INDEX.md`.
-- `README.md` (in-development skeleton), `.gitignore`, this file.
-- `.venv/` — a root-level Python 3.12.10 virtual environment (git-ignored).
+The MVP is **implemented** (implementation-plan phases 0–11; see `docs/DEVELOPMENT_LOG.md` for per-phase commits and test results):
+- `backend/` — FastAPI app, World Bank pipeline (`src/pipeline/`), SQLAlchemy models + Alembic migrations, pytest suite (unit + integration on `gedp_test`).
+- `frontend/` — React + TypeScript + Vite dashboard with Vitest tests.
+- `scripts/` — Windows Task Scheduler wrapper and registration script (the task itself is created by the owner).
+- `docs/` — six specifications, `DECISIONS.md`, `SCHEDULING.md`, `DEVELOPMENT_LOG.md`, screenshots and a sample quality report.
+- `.venv/` — the single root Python 3.12.10 virtual environment (git-ignored).
 
-No `backend/`, `frontend/`, migrations, or tests exist yet. The commands and layout below are the *planned* targets described in the docs; most do not run until the corresponding phase is built. When building, create structure incrementally — do not scaffold every directory up front.
+Further work should still go phase by phase with tests; deferred P1/P2 items are listed in the README.
 
 ## The docs are the contract
 
@@ -30,7 +32,7 @@ These are easy to violate and central to the project's purpose:
 - **Config-driven, not hard-coded.** Country list, indicator codes, and year range come from environment/config — never scattered through business logic.
 - **Pipeline logic is shared.** The pipeline must be callable from both a CLI and the API without duplicating business logic.
 
-## Architecture (planned)
+## Architecture
 
 ```
 World Bank API → requests client (timeout, bounded retry/backoff, pagination)
@@ -52,17 +54,18 @@ Backend layering (`backend/src/`): `api/` (routers + Pydantic schemas), `pipelin
   - Activate (PowerShell): `.\.venv\Scripts\Activate.ps1`
 - PostgreSQL is the system of record; prefer a dedicated local app database/user over the superuser.
 
-## Commands (planned — exist once their phase is built)
+## Commands
 
 Backend (from `backend/`):
 - Install: `pip install -r requirements-dev.txt` (runtime deps are in `requirements.txt`; dev file includes it)
 - Run API: `uvicorn src.main:app --reload`  (health at `/health`)
 - Migrate: `alembic upgrade head`
-- New migration: `alembic revision --autogenerate -m "message"`
-- Tests: `pytest`  · single test: `pytest tests/path_test.py::test_name`  · coverage: `pytest --cov`
+- New migration: `alembic revision --autogenerate -m "message"` · check models vs migrations: `alembic check` · test DB: `alembic -x db=test upgrade head`
+- Run pipeline: `python -m src.pipeline.cli run [--triggered-by scheduler]` (exit codes 0–4, TRD §13)
+- Tests: `pytest`  · single test: `pytest tests/path_test.py::test_name`  · coverage: `pytest --cov`. Integration tests use only `TEST_DATABASE_URL` and roll back every test; never truncate, drop or reset either database (D-37).
 
 Frontend (from `frontend/`):
-- Install: `npm install`
+- Install: `npm ci` (uses `package-lock.json`)
 - Dev: `npm run dev`  · build: `npm run build`  · test: `npm run test` (Vitest)
 
 CI (`.github/workflows/ci.yml`): backend pytest + frontend build/test. **CI must not depend on live World Bank availability** — unit tests use mocked responses; keep any live smoke test separate and optional.

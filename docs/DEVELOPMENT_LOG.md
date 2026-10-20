@@ -13,7 +13,9 @@ Per-phase record of what was built and verified. Test counts are copied from act
 | 6 | `9543340` | FastAPI analytics, runs, quality and trigger endpoints (157 passed) |
 | 7 | `237abe4` | React/TypeScript/Vite shell, API client, Overview page, frontend CI (Vitest 5 passed) |
 | 8 | `35705dd` | Explore, Compare, Runs (trigger + polling), Run detail, Quality, About (Vitest 26 passed) |
-| 9 | see Phase 10 entry | Windows Task Scheduler wrapper, registration script, guide |
+| 9 | `cd8c4f0` | Windows Task Scheduler wrapper, registration script, guide |
+| 10 | `de53453` | Fix: unit-test settings isolated from environment variables (found by fresh-clone check) |
+| 10–11 | see final report | README, screenshots, sample report, fresh-clone verification, docs sync |
 
 ## Phase 2 — Database schema, migrations and CI
 
@@ -117,3 +119,21 @@ Per-phase record of what was built and verified. Test counts are copied from act
 - Scheduled-style run via the wrapper: exit code 0, `triggered_by=scheduler`, loaded=600, inserted=0, value_changed=0, log written to `logs/`.
 - Overlap refusal (exit 3) and stale recovery were observed for real on `gedp_dev`.
 - Not verified: an actual Task Scheduler trigger, because the task has not been created.
+
+## Phases 10–11 — CI, README, GitHub and portfolio polish
+
+**Fresh-clone verification** (clone of `origin/main` at `cd8c4f0` into a temporary folder, without its own `.env`, `.venv` or `node_modules`; tested with the root `.venv`, database URLs passed through the environment):
+- `alembic -x db=test check`: no drift.
+- `pytest`: **1 failed, 156 passed** — `test_defaults_load_with_only_database_url` failed because `TEST_DATABASE_URL` was set as an environment variable, exactly as CI sets it. The unit-test settings fixture ignored `backend/.env` but not the environment, so **the backend CI job was most likely failing since Phase 2** (the private repository's Actions results could not be read here).
+- Fix `de53453`: the fixture clears every setting variable per test. Afterwards: 157 passed locally; unit suite passes with CI-style variables set.
+- Frontend from the clone: `npm ci` (146 packages), `npm run build` clean, `npm test` **26 passed**. The lock file contains the Linux x64 native packages (Rolldown, LightningCSS, TypeScript 7) that CI needs.
+
+**Portfolio material**
+- README rewritten from verified facts: architecture (Mermaid), setup from a fresh clone, usage, API table, tests and measured results, configuration, troubleshooting, security notes, limitations, deferred items.
+- Real screenshots of six pages (`docs/screenshots/`), captured with headless Edge against the API and `gedp_dev`.
+- `docs/samples/quality-report-sample.json`: the optional JSON export from real run `fff6aa0b` (success, loaded 600, inserted 0, value changed 0).
+
+**Open items for the owner**
+- Confirm the GitHub Actions run for the latest commit is green (not readable from this environment).
+- Create the scheduled task with `scripts/register_task.ps1` if wanted.
+- Choose a code license before publishing.

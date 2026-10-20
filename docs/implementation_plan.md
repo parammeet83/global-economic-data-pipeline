@@ -5,13 +5,11 @@
 - **Last updated:** 2026-10-19
 - **Decisions:** changes from v1.0 are explained in `DECISIONS.md` (referenced as `D-xx`).
 
-## 0. Repository state (2026-10-19)
+## 0. Repository state (2026-10-20)
 
-- The GitHub repository and `origin` remote already exist; `main` tracks `origin/main`.
-- The initial documentation commit `cf67e9d` is already on GitHub.
-- The root `.venv` (Python 3.12.10) is the project's virtual environment; nothing is installed in it yet.
-- Phase 0 documentation changes are complete in the working tree but **not yet committed**, pending the owner's review.
-- PostgreSQL is not yet installed (Phase 1).
+- Phases 0–11 are implemented and pushed to `origin/main`; per-phase commits and actual test results are in `DEVELOPMENT_LOG.md`.
+- The root `.venv` (Python 3.12.10) is the only Python environment; PostgreSQL 17 hosts `gedp_dev` and `gedp_test` (role `gedp_app`).
+- Not done by design: the Windows scheduled task is prepared (`scripts/register_task.ps1`) but created by the owner; a code license has not been chosen; P1/P2 enhancements are deferred.
 
 ## 1. Approach
 
