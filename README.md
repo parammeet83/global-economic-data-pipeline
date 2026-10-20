@@ -1,6 +1,6 @@
 # Global Economic Data Pipeline & Analytics Dashboard
 
-> **Status: in development.** Phase 0 (requirements and repository foundation) is under review. **No application code exists yet.** Everything below describes the *planned* system; setup, usage and results sections will be filled in only as each phase is built and verified.
+> **Status: in development.** Phase 1 (backend foundation: configuration and a `/health` endpoint) is implemented and under review. The data pipeline, database schema, analytics API and dashboard are **planned, not yet built**. Setup and usage sections describe only what currently works.
 
 A data-engineering portfolio project that will collect public economic indicators from the [World Bank Indicators API](https://datahelpdesk.worldbank.org/knowledgebase/topics/125589-developer-information), validate them, load them idempotently into PostgreSQL, and present them through a FastAPI backend and a React dashboard. The focus is reliability: retries and pagination, explicit validation, duplicate-safe reloads, audited pipeline runs and per-run data-quality results.
 
@@ -26,7 +26,7 @@ Entry points: CLI (manual and Windows Task Scheduler) and POST /api/v1/pipeline/
 | Database | PostgreSQL, SQLAlchemy 2.x, psycopg 3, Alembic |
 | API | FastAPI, Pydantic, pydantic-settings |
 | Frontend | React, TypeScript, Vite, Recharts |
-| Tests | pytest, httpx, Vitest |
+| Tests | pytest, httpx2 (FastAPI TestClient), Vitest |
 | CI | GitHub Actions (with a PostgreSQL service container) |
 | Scheduling | Windows Task Scheduler running the CLI |
 
@@ -44,8 +44,8 @@ Ten configurable countries (ISO-3 codes), years 2005–2024 by default. Missing 
 
 | Phase | Scope | Status |
 |---|---|---|
-| 0 | Requirements reconciliation, decision log, repository foundation | In review |
-| 1 | Local environment, PostgreSQL, configuration, `/health` | Not started |
+| 0 | Requirements reconciliation, decision log, repository foundation | Done |
+| 1 | Local environment, PostgreSQL, configuration, `/health` | Implemented, in review |
 | 2 | Database schema, migrations, CI | Not started |
 | 3 | World Bank API client | Not started |
 | 4 | Transformation and validation | Not started |
@@ -59,13 +59,26 @@ Ten configurable countries (ISO-3 codes), years 2005–2024 by default. Missing 
 
 ```text
 global-economic-data-pipeline/
-├── docs/          # specifications and decision log (see docs/INDEX.md)
+├── backend/
+│   ├── src/
+│   │   ├── api/health.py      # GET /health
+│   │   ├── core/config.py     # settings (pydantic-settings) and validation
+│   │   ├── db/session.py      # SQLAlchemy engine and SELECT 1 check
+│   │   └── main.py            # FastAPI app
+│   ├── tests/
+│   │   ├── unit/              # no database needed (database is mocked)
+│   │   └── integration/       # use the PostgreSQL test database when configured
+│   ├── .env.example           # copy to .env (git-ignored) and add your password
+│   ├── pytest.ini
+│   ├── requirements.txt       # runtime dependencies
+│   └── requirements-dev.txt   # runtime + test dependencies
+├── docs/                      # specifications and decision log (see docs/INDEX.md)
 ├── .gitignore
-├── CLAUDE.md      # guidance for Claude Code
+├── CLAUDE.md                  # guidance for Claude Code
 └── README.md
 ```
 
-`backend/` and `frontend/` will be added in Phases 1 and 7.
+`frontend/` will be added in Phase 7.
 
 ## Documentation
 
@@ -78,17 +91,51 @@ global-economic-data-pipeline/
 - [docs/implementation_plan.md](docs/implementation_plan.md): phased plan
 - [docs/DECISIONS.md](docs/DECISIONS.md): agreed design decisions
 
-## Setup
+## Setup (backend, Windows PowerShell)
 
-_To be written in Phase 1._ Planned prerequisites: Windows, Python 3.12, PostgreSQL (native install), Node.js LTS, Git.
+Prerequisites: Python 3.12, PostgreSQL 17 running locally with a non-superuser role `gedp_app` that owns the databases `gedp_dev` and `gedp_test`, and Git. (Node.js is needed from Phase 7.)
+
+From the repository root:
+
+```powershell
+python -m venv .venv                       # skip if .venv already exists
+.\.venv\Scripts\Activate.ps1
+cd backend
+pip install -r requirements-dev.txt
+Copy-Item .env.example .env                # .env is git-ignored
+notepad .env                               # replace both CHANGE_ME values with your gedp_app password
+python -m src.core.config                  # checks settings; prints databases without the password
+```
+
+If the password contains special characters such as `@ : / ? # %`, URL-encode them in `.env` (for example `@` becomes `%40`).
+
+## Running the API
+
+From `backend/` with the virtual environment active:
+
+```powershell
+uvicorn src.main:app --reload
+```
+
+- `http://127.0.0.1:8000/health` returns `200 {"status":"ok","database":"ok"}` when `SELECT 1` succeeds, or `503 {"status":"degraded","database":"unavailable"}` when the database cannot be reached.
+- `http://127.0.0.1:8000/docs` shows the interactive API documentation.
 
 ## Running the pipeline
 
-_To be written in Phase 5._
+_Planned for Phase 5._
 
 ## Running tests
 
-_To be written in Phase 2._ Automated tests will mock the World Bank API and use a dedicated test database.
+From `backend/` with the virtual environment active:
+
+```powershell
+pytest                       # all tests; integration tests are skipped if TEST_DATABASE_URL is not configured
+pytest tests/unit            # unit tests only (no database needed)
+pytest -m integration        # PostgreSQL integration tests (uses gedp_test, read-only in Phase 1)
+pytest --cov=src             # with a coverage report
+```
+
+Unit tests mock the database. Integration tests use only `TEST_DATABASE_URL`, which must name a `*_test` database different from `DATABASE_URL`. Tests that call the real World Bank API (from Phase 3) are marked `live` and excluded by default.
 
 ## Known limitations (planned design)
 

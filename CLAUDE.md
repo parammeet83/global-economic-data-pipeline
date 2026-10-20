@@ -43,7 +43,7 @@ Backend layering (`backend/src/`): `api/` (routers + Pydantic schemas), `pipelin
 
 **Data model** (`docs/Backend_DB_Schema.md`): `countries` and `indicators` (dimensions) → `economic_observations` (fact, unique key `(country_code, indicator_code, year)`) → `pipeline_runs` (audit log, one row per attempt) → `data_quality_checks` (per-run check outcomes). Use PostgreSQL constraints (CHECKs, FKs, unique key) as the final integrity guard, not just Python checks.
 
-**Stack:** Python 3.12 · FastAPI/uvicorn/Pydantic · SQLAlchemy 2.x + psycopg 3 · Alembic · pandas · Pandera · pytest/httpx · React + TypeScript + Vite + Recharts · Vitest. Pin or bound dependency versions only after verifying compatibility — do not add unverified latest versions.
+**Stack:** Python 3.12 · FastAPI/uvicorn/Pydantic · SQLAlchemy 2.x + psycopg 3 · Alembic · pandas · Pandera · pytest/httpx2 (TestClient) · React + TypeScript + Vite + Recharts · Vitest. Pin or bound dependency versions only after verifying compatibility — do not add unverified latest versions.
 
 ## Environment & tooling
 

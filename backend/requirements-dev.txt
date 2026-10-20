@@ -1,0 +1,6 @@
+# Development and test dependencies (D-03). Installs the runtime set first.
+# `responses` (HTTP mocking) is added with the World Bank client in Phase 3.
+-r requirements.txt
+pytest==9.1.1
+pytest-cov==7.1.0
+httpx2==2.15.1  # used by FastAPI/Starlette TestClient (Starlette 1.9 deprecates plain httpx)

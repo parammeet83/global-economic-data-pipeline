@@ -1,0 +1,9 @@
+# Runtime dependencies (D-03). Direct dependencies only, pinned to versions verified
+# to install and pass the test suite on Windows with Python 3.12.10.
+# pandas, pandera and requests are added in the phases that first use them.
+fastapi==0.150.0
+uvicorn==0.54.0
+pydantic==2.14.1
+pydantic-settings==2.16.0
+SQLAlchemy==2.1.5
+psycopg[binary]==3.3.6

@@ -48,7 +48,7 @@ Browser clients call FastAPI only. Database credentials and SQL remain on the ba
 | Database | PostgreSQL (native Windows install; 17 preferred, ≥ 16) | durable analytical observations and operational history |
 | ORM / data access | SQLAlchemy 2.x, psycopg 3 | transactions, queries and upserts |
 | Schema migration | Alembic | versioned database schema changes |
-| Tests | `pytest`, `httpx` test client, `responses` (HTTP mocking), `pytest-cov` | automated backend tests and coverage reporting |
+| Tests | `pytest`, `httpx2` (FastAPI/Starlette test client; replaces the deprecated `httpx` backend), `responses` (HTTP mocking), `pytest-cov` | automated backend tests and coverage reporting |
 | Frontend | Node.js LTS, React, TypeScript, Vite, plain CSS with CSS variables | browser-based analytics application |
 | Visualization | Recharts | line/bar charts and simple metrics |
 | Frontend tests | Vitest and React Testing Library (Phase 8; build check from Phase 7) | component and utility tests |
